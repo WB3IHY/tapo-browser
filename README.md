@@ -66,8 +66,12 @@ status when it connects.
 ## 4. Use it
 
 - **Live view** — click a camera's thumbnail or **▶ Live**. The stream plays in the page,
-  with **camera controls** below it (night vision, privacy/lens-cover, status LED, motion
-  detection, image flip, alarm siren). Only the controls your model supports are shown.
+  with a **camera controls** panel below it, grouped by category: image & display (night
+  vision, anti-flicker, flip, HDR, distortion), light & LED, audio (speaker/mic volume),
+  detection (motion, person, vehicle, pet, sound detections, line-crossing, package, PIR),
+  movement (pan/tilt + auto-track on PTZ models), alerts (alarm, siren), privacy, and a
+  reboot. **Only the controls your specific camera supports are shown** — each with a
+  hover ⓘ explaining what it does.
 - **Recordings** — click **Recordings**, choose a date range, click **Find days with
   footage**, pick a day, then download any segment. Progress is shown live; finished files
   are saved under `data/downloads/<camera>/<date>/` and via the **Save file** button.

@@ -35,7 +35,7 @@ account password is stored **unencrypted** in local SQLite by design (personal h
 
 - `app.py` — FastAPI app + lifespan: ensure binaries → prepend `bin/` to PATH → start/stop go2rtc. `create_app()` wires `app.state.{settings,clients,downloads,go2rtc}`.
 - `bootstrap/binaries.py` — downloads/locates `ffmpeg`,`ffprobe`,`go2rtc` (prefers a working system binary, else pinned downloads from `sources.py`; caches same-URL archives).
-- `tapo/` — `client.py` (`TapoClientCache` sync→async bridge via `run_blocking`), `info.py` (connection test + SD parsing + `friendly_error`), `recordings.py` (list days/segments), `downloader.py` (`DownloadManager`: background jobs), `controls.py` (live-view controls: `Control` descriptors + `probe_controls`/`apply_control`; `probe_controls` skips controls the camera rejects).
+- `tapo/` — `client.py` (`TapoClientCache` sync→async bridge via `run_blocking`), `info.py` (connection test + SD parsing + `friendly_error`), `recordings.py` (list days/segments), `downloader.py` (`DownloadManager`: background jobs), `controls.py` (live-view controls: a typed `Control` catalog — toggle/select/number/action/ptz — each capability-probed by `probe_controls` so only what the camera supports renders; grouped, with per-control descriptions for tooltips. Footguns like SD-format and media-encrypt are intentionally excluded).
 - `streaming/` — `go2rtc.py` (subprocess + `go2rtc.yaml` generation), `source.py` (`tapo_source_url` + the SHA-256 hash).
 - `api/` — routers under `/api`: `cameras`, `recordings`, `downloads`, `stream`.
 - `db/` — raw `sqlite3` (no ORM), WAL, migrate-on-start from `schema.sql`.
