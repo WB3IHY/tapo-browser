@@ -18,6 +18,7 @@ from ..models import (
     TestConnectionRequest,
     TestConnectionResult,
 )
+from ..tapo.controls import clear_capability_cache
 from ..tapo.info import test_connection
 
 log = logging.getLogger("tapo_cli.api.cameras")
@@ -38,6 +39,7 @@ def _invalidate(request: Request, camera_id: int) -> None:
     clients = getattr(request.app.state, "clients", None)
     if clients is not None:
         clients.invalidate(camera_id)
+    clear_capability_cache(camera_id)
 
 
 @router.get("/cameras", response_model=list[CameraOut])

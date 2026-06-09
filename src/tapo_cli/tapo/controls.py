@@ -246,10 +246,45 @@ CONTROLS: list[Control] = [
 
 _BY_KEY = {c.key: c for c in CONTROLS}
 
+# Which controls each camera supports is stable, but their *values* change. We
+# cache the supported-key set per camera so repeat probes skip the (slow)
+# support detection of unsupported controls and only re-read current values.
+_capability_cache: dict[int, list[str]] = {}
 
-def probe_controls(tapo: Any) -> list[dict[str, Any]]:
-    """Return the controls this specific camera supports, with current values."""
-    out: list[dict[str, Any]] = []
+
+def clear_capability_cache(camera_id: int | None = None) -> None:
+    """Forget cached capabilities (call when a camera's host/credentials change)."""
+    if camera_id is None:
+        _capability_cache.clear()
+    else:
+        _capability_cache.pop(camera_id, None)
+
+
+def probe_controls(tapo: Any, camera_id: int | None = None) -> list[dict[str, Any]]:
+    """Return the controls this specific camera supports, with current values.
+
+    On the first call for a camera the full capability probe runs and the
+    supported-key set is cached; subsequent calls only re-read those controls'
+    values (much fewer round-trips).
+    """
+    cached = _capability_cache.get(camera_id) if camera_id is not None else None
+
+    if cached is not None:
+        out: list[dict[str, Any]] = []
+        for key in cached:
+            c = _BY_KEY.get(key)
+            if c is None:
+                continue
+            value = c.default
+            if c.getter is not None:
+                try:
+                    value = c.getter(tapo)
+                except Exception as exc:  # noqa: BLE001 — transient; keep showing the control
+                    log.debug("control %s value read failed: %s", key, exc)
+            out.append(c.to_dict(value))
+        return out
+
+    out = []
     for c in CONTROLS:
         if not c.supported(tapo):
             log.debug("control %s not supported", c.key)
@@ -262,6 +297,9 @@ def probe_controls(tapo: Any) -> list[dict[str, Any]]:
                 log.debug("control %s getter failed: %s", c.key, exc)
                 continue
         out.append(c.to_dict(value))
+
+    if camera_id is not None:
+        _capability_cache[camera_id] = [d["key"] for d in out]
     return out
 
 

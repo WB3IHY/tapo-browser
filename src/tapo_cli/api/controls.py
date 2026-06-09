@@ -32,7 +32,7 @@ async def get_controls(camera_id: int, request: Request) -> list[dict[str, Any]]
     cam = _cam_or_404(camera_id)
     tapo = await request.app.state.clients.get(cam)
     try:
-        return await run_blocking(controls_mod.probe_controls, tapo)
+        return await run_blocking(controls_mod.probe_controls, tapo, camera_id)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(502, friendly_error(exc))
 

@@ -48,15 +48,28 @@ export async function openLive(cam) {
   renderControls(cam);
 }
 
+// Cache the last controls list per camera so reopening paints instantly while
+// fresh values load in the background.
+const controlsCache = new Map();
+
 async function renderControls(cam) {
-  controlsEl.innerHTML = `<div class="ctrl-loading"><span class="spinner"></span> Loading controls…</div>`;
+  const cached = controlsCache.get(cam.id);
+  if (cached) paintControls(cam, cached);
+  else controlsEl.innerHTML = `<div class="ctrl-loading"><span class="spinner"></span> Loading controls…</div>`;
+
   let list;
   try {
     list = await api(`/api/cameras/${cam.id}/controls`);
   } catch (err) {
-    controlsEl.innerHTML = `<div class="ctrl-err">Controls unavailable: ${err.message}</div>`;
+    if (!cached) controlsEl.innerHTML = `<div class="ctrl-err">Controls unavailable: ${err.message}</div>`;
     return;
   }
+  // Only repaint if something actually changed (avoids flicker / disrupting a toggle).
+  if (JSON.stringify(list) !== JSON.stringify(cached)) paintControls(cam, list);
+  controlsCache.set(cam.id, list);
+}
+
+function paintControls(cam, list) {
   controlsEl.innerHTML = "";
   if (!list.length) return;
   // Group by capability category, preserving first-seen order.
