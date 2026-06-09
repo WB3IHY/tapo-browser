@@ -158,12 +158,40 @@ video-stream video { width: 100%; height: 100%; }
   background: var(--panel-2); border: 1px solid var(--border);
   border-radius: 10px; padding: 7px 12px; font-size: 13px;
 }
-.ctrl .ctrl-label { color: var(--text); cursor: pointer; margin: 0; }
+.ctrl.ctrl-wide { flex: 1 1 270px; }
+.ctrl .ctrl-label { color: var(--text); margin: 0; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .ctrl select {
   width: auto; padding: 4px 8px; font-size: 13px; border-radius: 6px;
   background: var(--bg); color: var(--text); border: 1px solid var(--border);
 }
-.ctrl .ctrl-status { width: 12px; color: var(--ok); font-size: 13px; }
+.ctrl .ctrl-status { width: 12px; color: var(--ok); font-size: 13px; flex: none; }
+.ctrl .ctrl-status.err { color: var(--danger); }
+
+/* number slider */
+.ctrl-numrow { display: flex; align-items: center; gap: 8px; flex: 1; }
+.ctrl-numrow input[type=range] { flex: 1; accent-color: var(--accent); min-width: 90px; }
+.ctrl-num { width: 30px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+
+/* info tooltip */
+.ctrl-info { position: relative; cursor: help; color: var(--muted); font-size: 11px; }
+.ctrl-info::after {
+  content: attr(data-tip);
+  position: absolute; left: 50%; bottom: 150%; transform: translateX(-50%);
+  background: #0b0f14; color: var(--text); border: 1px solid var(--border);
+  padding: 7px 10px; border-radius: 8px; font-size: 12px; line-height: 1.4;
+  width: max-content; max-width: 230px; white-space: normal; text-align: left;
+  opacity: 0; pointer-events: none; transition: opacity .12s; z-index: 40;
+  box-shadow: 0 8px 24px rgba(0,0,0,.55);
+}
+.ctrl-info:hover::after { opacity: 1; }
+
+/* PTZ pad */
+.ctrl-ptz .ptz-pad { display: grid; grid-template-columns: repeat(3, 30px); grid-template-rows: repeat(3, 30px); gap: 3px; }
+.ctrl-ptz .ptz-pad button { padding: 0; font-size: 12px; }
+.ctrl-ptz .ptz-pad button[data-dir=up] { grid-area: 1 / 2; }
+.ctrl-ptz .ptz-pad button[data-dir=left] { grid-area: 2 / 1; }
+.ctrl-ptz .ptz-pad button[data-dir=right] { grid-area: 2 / 3; }
+.ctrl-ptz .ptz-pad button[data-dir=down] { grid-area: 3 / 2; }
 
 /* toggle switch */
 .switch { position: relative; display: inline-block; width: 38px; height: 21px; flex: none; }

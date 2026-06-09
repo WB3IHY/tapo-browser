@@ -82,59 +82,108 @@ async function renderControls(cam) {
 }
 
 function controlEl(cam, c) {
+  const wide = c.type === "number" || c.type === "ptz";
   const wrap = document.createElement("div");
-  wrap.className = "ctrl";
-  if (c.help) wrap.title = c.help;
+  wrap.className = "ctrl" + (wide ? " ctrl-wide" : "") + (c.type === "ptz" ? " ctrl-ptz" : "");
+
   const status = document.createElement("span");
   status.className = "ctrl-status";
-
+  const flash = (txt, ok = true) => {
+    status.textContent = txt;
+    status.className = "ctrl-status" + (ok ? "" : " err");
+    status.title = "";
+    if (txt === "✓") setTimeout(() => { if (status.textContent === "✓") status.textContent = ""; }, 1200);
+  };
   const send = async (value, revert) => {
-    status.textContent = "…";
+    flash("…");
     try {
-      await api(`/api/cameras/${cam.id}/controls/${c.key}`, {
-        method: "POST",
-        body: JSON.stringify({ value }),
-      });
-      status.textContent = "✓";
-      setTimeout(() => (status.textContent = ""), 1200);
+      await api(`/api/cameras/${cam.id}/controls/${c.key}`, { method: "POST", body: JSON.stringify({ value }) });
+      flash("✓");
+      return true;
     } catch (err) {
-      status.textContent = "✕";
+      flash("✕", false);
       status.title = err.message;
       if (revert) revert();
+      return false;
     }
   };
 
+  // label + info-tooltip
+  const head = () => {
+    const h = document.createElement("span");
+    h.className = "ctrl-label";
+    h.textContent = c.label;
+    if (c.desc) {
+      const i = document.createElement("span");
+      i.className = "ctrl-info";
+      i.textContent = "ⓘ";
+      i.dataset.tip = c.desc;
+      h.appendChild(i);
+    }
+    return h;
+  };
+
   if (c.type === "toggle") {
-    const id = `ctrl-${c.key}`;
     const sw = document.createElement("label");
     sw.className = "switch";
-    sw.innerHTML = `<input type="checkbox" id="${id}" ${c.value ? "checked" : ""}><span class="slider"></span>`;
+    sw.innerHTML = `<input type="checkbox" ${c.value ? "checked" : ""}><span class="slider"></span>`;
     const cb = sw.querySelector("input");
     cb.addEventListener("change", () => send(cb.checked, () => (cb.checked = !cb.checked)));
-    const lab = document.createElement("label");
-    lab.className = "ctrl-label";
-    lab.htmlFor = id;
-    lab.textContent = c.label;
-    wrap.append(sw, lab, status);
+    wrap.append(sw, head(), status);
   } else if (c.type === "select") {
-    const lab = document.createElement("span");
-    lab.className = "ctrl-label";
-    lab.textContent = c.label;
     const sel = document.createElement("select");
     for (const o of c.options || []) {
       const opt = document.createElement("option");
-      opt.value = o;
-      opt.textContent = o;
-      if (o === c.value) opt.selected = true;
+      opt.value = o; opt.textContent = o;
+      if (o === String(c.value)) opt.selected = true;
       sel.appendChild(opt);
     }
-    let prev = c.value;
-    sel.addEventListener("change", () => {
-      const v = sel.value;
-      send(v, () => (sel.value = prev));
-      prev = v;
+    let prev = String(c.value);
+    sel.addEventListener("change", async () => { if (await send(sel.value, () => (sel.value = prev))) prev = sel.value; });
+    wrap.append(head(), sel, status);
+  } else if (c.type === "number") {
+    const range = document.createElement("input");
+    range.type = "range";
+    range.min = c.min ?? 0; range.max = c.max ?? 100; range.step = c.step ?? 1;
+    range.value = c.value ?? 0;
+    const num = document.createElement("span");
+    num.className = "ctrl-num";
+    num.textContent = range.value;
+    range.addEventListener("input", () => (num.textContent = range.value));
+    let prev = range.value;
+    range.addEventListener("change", async () => {
+      if (await send(Number(range.value), () => { range.value = prev; num.textContent = prev; })) prev = range.value;
     });
-    wrap.append(lab, sel, status);
+    const row = document.createElement("div");
+    row.className = "ctrl-numrow";
+    row.append(range, num);
+    wrap.append(head(), row, status);
+  } else if (c.type === "action") {
+    const btn = document.createElement("button");
+    btn.className = "small" + (c.danger ? " danger" : "");
+    btn.textContent = c.label;
+    btn.addEventListener("click", () => {
+      if (c.danger && !confirm(`${c.label}?\n\n${c.desc || ""}`)) return;
+      send(null);
+    });
+    wrap.append(btn);
+    if (c.desc) {
+      const i = document.createElement("span");
+      i.className = "ctrl-info"; i.textContent = "ⓘ"; i.dataset.tip = c.desc;
+      wrap.append(i);
+    }
+    wrap.append(status);
+  } else if (c.type === "ptz") {
+    const pad = document.createElement("div");
+    pad.className = "ptz-pad";
+    const glyph = { up: "▲", down: "▼", left: "◀", right: "▶" };
+    for (const d of ["up", "left", "right", "down"]) {
+      const b = document.createElement("button");
+      b.dataset.dir = d; b.textContent = glyph[d]; b.title = d;
+      b.addEventListener("click", () => send(d));
+      pad.appendChild(b);
+    }
+    wrap.append(head(), pad, status);
   }
   return wrap;
 }
