@@ -31,14 +31,17 @@ export async function openLive(cam) {
   try {
     const info = await api(`/api/cameras/${cam.id}/stream/info`);
     el.src = info.ws_src; // component turns this into ws://<origin>/...
-    // If no real video frame has decoded after a while, show a helpful hint.
-    clearTimeout(hintTimer);
-    hintTimer = setTimeout(() => {
+    // Self-correcting hint: hide as soon as real video is decoding; only show it
+    // if the stream is still stuck after a grace period (this firmware can be slow
+    // to deliver the first keyframe).
+    clearInterval(hintTimer);
+    const startedAt = Date.now();
+    hintTimer = setInterval(() => {
       const v = el.querySelector("video");
-      // Not really playing: no element, not enough data buffered, or only the
-      // tiny placeholder resolution decoded (real Tapo streams are >= 640px wide).
-      if (!v || v.readyState < 2 || v.videoWidth < 320) hint.hidden = false;
-    }, 12000);
+      const playing = v && v.readyState >= 2 && v.videoWidth >= 320;
+      if (playing) hint.hidden = true;
+      else if (Date.now() - startedAt > 15000) hint.hidden = false;
+    }, 2000);
   } catch (err) {
     mount.innerHTML = `<div class="empty">Could not start stream: ${err.message}</div>`;
   }
@@ -55,7 +58,27 @@ async function renderControls(cam) {
     return;
   }
   controlsEl.innerHTML = "";
-  for (const c of list) controlsEl.appendChild(controlEl(cam, c));
+  if (!list.length) return;
+  // Group by capability category, preserving first-seen order.
+  const order = [];
+  const byGroup = new Map();
+  for (const c of list) {
+    const g = c.group || "Controls";
+    if (!byGroup.has(g)) { byGroup.set(g, []); order.push(g); }
+    byGroup.get(g).push(c);
+  }
+  for (const g of order) {
+    const section = document.createElement("div");
+    section.className = "ctrl-group";
+    const h = document.createElement("div");
+    h.className = "ctrl-group-title";
+    h.textContent = g;
+    const row = document.createElement("div");
+    row.className = "ctrl-row";
+    for (const c of byGroup.get(g)) row.appendChild(controlEl(cam, c));
+    section.append(h, row);
+    controlsEl.appendChild(section);
+  }
 }
 
 function controlEl(cam, c) {
@@ -118,7 +141,7 @@ function controlEl(cam, c) {
 
 // Tear down the player when the dialog closes so the stream stops.
 dialog.addEventListener("close", () => {
-  clearTimeout(hintTimer);
+  clearInterval(hintTimer);
   mount.innerHTML = "";
   controlsEl.innerHTML = "";
 });
