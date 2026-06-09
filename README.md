@@ -80,21 +80,22 @@ status when it connects.
   attempts. Wait the stated time, or **reboot the camera** to clear it immediately.
 - **No recordings / “no SD card”** — the camera needs a working microSD card inserted and
   recording enabled in the Tapo app. Recordings can only be downloaded if footage exists.
-- **Live video doesn't start (you see the hint box)** — live streaming depends on
-  compatibility between your camera's firmware and the streaming bridge (go2rtc). On some
-  newer firmware the native Tapo stream is unstable. The camera's **control, recordings and
-  downloads still work**. If your camera supports **RTSP** (enable it in the Tapo app's
-  camera settings), that is the most reliable live-view path — see *Known limitations*.
+- **Live video doesn't start (you see the hint box)** — on **macOS**, allow the
+  *Local Network* access prompt the first time you run it (or enable it under System
+  Settings → Privacy & Security → Local Network), then reopen Live and give it a few
+  seconds. If a particular camera's firmware still won't stream, enabling **RTSP** in the
+  Tapo app is the fallback — see *Known limitations*. Control, recordings and downloads work
+  regardless.
 - **Port already in use** — start on another port: `TAPO_PORT=9000 ./run.sh`.
 
 ## Known limitations
 
-- **Live view is firmware-sensitive.** This app streams via go2rtc's native `tapo://`
-  source. It works on many Tapo cameras, but some recent firmware versions drop the stream
-  (go2rtc logs `multipart: NextPart: EOF`) so video won't render — while everything else
-  keeps working. A future option is an explicit **RTSP** live-source (using the Tapo app's
-  *Advanced Settings → Camera Account*), which is more broadly compatible when RTSP is
-  enabled on the camera.
+- **Live view** streams via go2rtc's native `tapo://` source and is verified working at
+  full 2K on a Tapo **C520WS** (firmware 1.3.4). On macOS the helper needs *Local Network*
+  permission (granted on first prompt). On some firmware go2rtc reconnects the source
+  periodically (a brief hiccup), but playback continues. If a specific camera won't stream
+  this way at all, enabling **RTSP** in the Tapo app is the fallback (an explicit RTSP
+  source could be added as an option).
 
 ## Notes
 
