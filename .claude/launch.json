@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tapo",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "uvicorn", "tapo_cli.app:app", "--host", "127.0.0.1", "--port", "8090"],
+      "port": 8090
+    }
+  ]
+}

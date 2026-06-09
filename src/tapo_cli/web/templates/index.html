@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tapo Camera Manager</title>
+  <link rel="stylesheet" href="/static/css/app.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1><span class="dot"></span> Tapo Camera Manager</h1>
+      <div class="sub">Live view &amp; recordings for your Tapo cameras</div>
+    </div>
+    <button class="primary" id="add-btn">+ Add camera</button>
+  </header>
+
+  <main>
+    <div id="cameras" class="grid"></div>
+    <div id="empty" class="empty" hidden>
+      No cameras yet. Click <strong>“+ Add camera”</strong> to get started.
+    </div>
+  </main>
+
+  <!-- Add / edit camera -->
+  <dialog id="camera-dialog">
+    <form method="dialog" id="camera-form">
+      <div class="dlg-head">
+        <h2 id="camera-dlg-title">Add camera</h2>
+        <button type="button" class="ghost small" data-close>✕</button>
+      </div>
+      <div class="dlg-body">
+        <input type="hidden" name="id" />
+        <div class="field">
+          <label>Name</label>
+          <input name="name" required placeholder="e.g. Front Door" />
+        </div>
+        <div class="row">
+          <div class="field" style="flex:2">
+            <label>Host / IP address</label>
+            <input name="host" required placeholder="192.168.1.50" />
+          </div>
+          <div class="field">
+            <label>Control port</label>
+            <input name="control_port" type="number" placeholder="443" />
+          </div>
+        </div>
+        <div class="field">
+          <label>TP-Link account password</label>
+          <input name="account_password" type="password" autocomplete="new-password" placeholder="your Tapo / TP-Link app login password" />
+        </div>
+        <div class="hint" style="margin:-8px 0 14px">
+          The password for your <strong>Tapo / TP-Link app account</strong>. The camera's local
+          username is always <code>admin</code> — you don't set it here. Used for live view,
+          recordings, and downloads.
+        </div>
+        <div class="field" style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <input type="checkbox" name="enabled" checked style="width:auto" id="enabled-cb" />
+          <label for="enabled-cb" style="margin:0">Enabled (include in live streaming)</label>
+        </div>
+        <div class="test-result" id="test-result"></div>
+      </div>
+      <div class="dlg-foot">
+        <button type="button" class="ghost" id="test-btn">Test connection</button>
+        <div style="display:flex;gap:10px">
+          <button type="button" data-close>Cancel</button>
+          <button type="submit" class="primary" id="save-btn">Save</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Live view -->
+  <dialog id="live-dialog">
+    <div class="dlg-head">
+      <h2 id="live-title">Live</h2>
+      <button type="button" class="ghost small" data-close>✕</button>
+    </div>
+    <div class="dlg-body">
+      <div id="live-mount"></div>
+    </div>
+  </dialog>
+
+  <!-- Recordings -->
+  <dialog id="rec-dialog">
+    <div class="dlg-head">
+      <h2 id="rec-title">Recordings</h2>
+      <button type="button" class="ghost small" data-close>✕</button>
+    </div>
+    <div class="dlg-body">
+      <div class="rec-toolbar">
+        <div class="field" style="margin:0">
+          <label>From</label>
+          <input type="date" id="rec-start" />
+        </div>
+        <div class="field" style="margin:0">
+          <label>To</label>
+          <input type="date" id="rec-end" />
+        </div>
+        <button class="small" id="rec-load-days">Find days with footage</button>
+        <span id="rec-status" style="color:var(--muted);font-size:13px"></span>
+      </div>
+      <div class="rec-cols">
+        <div class="rec-days" id="rec-days"></div>
+        <div class="rec-segments" id="rec-segments">
+          <div class="empty" style="padding:24px">Pick a day to list its recordings.</div>
+        </div>
+      </div>
+      <div id="downloads"></div>
+    </div>
+  </dialog>
+
+  <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

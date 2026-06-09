@@ -1,0 +1,15 @@
+# Runtime artifacts
+/bin/
+/data/
+*.db
+*.db-wal
+*.db-shm
+
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+.python-version
+
+# OS
+.DS_Store
