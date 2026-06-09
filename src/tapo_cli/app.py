@@ -71,9 +71,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 
 def _mount_routers(app: FastAPI) -> None:
-    from .api import cameras, downloads, recordings, stream
+    from .api import cameras, controls, downloads, recordings, stream
 
     app.include_router(cameras.router, prefix="/api")
+    app.include_router(controls.router, prefix="/api")
     app.include_router(recordings.router, prefix="/api")
     app.include_router(downloads.router, prefix="/api")
     app.include_router(stream.router, prefix="/api")

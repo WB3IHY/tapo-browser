@@ -65,7 +65,9 @@ status when it connects.
 
 ## 4. Use it
 
-- **Live view** — click a camera's thumbnail or **▶ Live**. The stream plays in the page.
+- **Live view** — click a camera's thumbnail or **▶ Live**. The stream plays in the page,
+  with **camera controls** below it (night vision, privacy/lens-cover, status LED, motion
+  detection, image flip, alarm siren). Only the controls your model supports are shown.
 - **Recordings** — click **Recordings**, choose a date range, click **Find days with
   footage**, pick a day, then download any segment. Progress is shown live; finished files
   are saved under `data/downloads/<camera>/<date>/` and via the **Save file** button.
