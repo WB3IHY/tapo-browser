@@ -1,0 +1,21 @@
+name: "Tapo Camera Manager"
+description: >-
+  Live view, camera controls, and on-demand SD-card recording downloads for
+  TP-Link Tapo cameras. Packages the tapo-browser fork
+  (https://github.com/WB3IHY/tapo-browser) as a local add-on.
+slug: tapo_browser
+version: "0.1.0"
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: auto
+ports:
+  8077/tcp: 8077
+ports_description:
+  8077/tcp: Tapo Camera Manager web UI
+map:
+  - type: data
+    read_only: false
+ingress: false
