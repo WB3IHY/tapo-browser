@@ -7,18 +7,20 @@ Supervisor-managed container on the same Pi as Home Assistant OS, instead of
 as a manually-started script.
 
 Nothing about the app itself changes — same FastAPI backend, same UI, same
-features (live view + controls, on-demand SD-card recording downloads). This
-is packaging only.
+features (camera management, SD-card recording browsing/downloads, thumbnail
+previews, direct segment playback). This is packaging only. (Live view and
+camera controls were part of an earlier phase of this project and have since
+been removed — see the main repo's `CLAUDE.md`.)
 
 ## Data persistence
 
 Everything the app writes at runtime — the camera database (`tapo.db`),
-downloaded recordings, and the `ffmpeg`/`go2rtc` helper binaries it fetches on
-first run — normally lives in `data/` and `bin/` folders next to the app's
-own code (see `src/tapo_cli/paths.py`). Inside a container, those folders are
-`/app/data` and `/app/bin`, and **neither survives a container
-restart or add-on update** — only Supervisor's persistent `/data` volume
-does.
+downloaded recordings, cached thumbnails, and (if not already found on
+`PATH` — see below) the `ffmpeg`/`ffprobe` helper binaries — normally lives
+in `data/` and `bin/` folders next to the app's own code (see
+`src/tapo_cli/paths.py`). Inside a container, those folders are `/app/data`
+and `/app/bin`, and **neither survives a container restart or add-on
+update** — only Supervisor's persistent `/data` volume does.
 
 `run.sh` (the container entrypoint) handles this before the app starts:
 
@@ -88,10 +90,11 @@ Then, in Home Assistant:
 2. The add-on appears under **Local add-ons** as "Tapo Camera Manager" —
    click it, then **Install**. First build pulls the `python:3.13-slim` base
    image and installs dependencies; expect it to take a few minutes.
-3. **Start** it. On first start it also needs outbound internet once, to
-   download the `go2rtc` binary (no system-package fallback exists for that
-   one, unlike `ffmpeg`/`ffprobe` which are installed via `apt` in the
-   Dockerfile and don't need to be downloaded).
+3. **Start** it. `ffmpeg`/`ffprobe` are already installed via `apt` in the
+   Dockerfile, and the app prefers a working system binary over downloading
+   its own (see `bootstrap/binaries.py`) — no first-run internet fetch should
+   be needed for those. (`go2rtc` was a dependency of an earlier, now-removed
+   phase of this project and isn't used at all anymore.)
 4. Reach it at `http://<pi-ip>:8077`, or embed it in Lovelace with an
    `iframe` card pointed at that same URL — the same pattern as any other
    IP:port camera page. (Ingress is intentionally not used here — see below.)

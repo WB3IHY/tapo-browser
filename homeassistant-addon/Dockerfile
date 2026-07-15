@@ -19,6 +19,9 @@ COPY src ./src
 # Installed directly from pyproject.toml's [project.dependencies] rather than
 # `pip install .` — a wheel install would relocate the package into
 # site-packages, which breaks tapo_cli/paths.py's own relative path resolution.
+# Keep this list in sync with pyproject.toml by hand - it drifted out of sync
+# once already (missing aiortc, stale pyyaml) between when this Dockerfile was
+# first written and when it was restored after a project pivot.
 RUN pip install --no-cache-dir \
         "fastapi>=0.115" \
         "uvicorn[standard]>=0.30" \
@@ -26,7 +29,7 @@ RUN pip install --no-cache-dir \
         "pytapo>=3.4,<4" \
         "aiofiles>=23.0" \
         "httpx>=0.27" \
-        "pyyaml>=6.0"
+        "aiortc>=1.15.0"
 
 COPY run.sh /run.sh
 RUN chmod +x /run.sh
