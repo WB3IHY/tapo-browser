@@ -1,18 +1,18 @@
 -- Idempotent schema. Re-run safe on every startup.
 --
 -- Credential model (modern Tapo firmware): the only secret is the TP-Link
--- *account* password. The local control API logs in as user "admin" with that
--- password; go2rtc's native tapo:// stream source uses SHA256(account_password).
--- The Tapo app's separate "Camera Account" (for RTSP) is NOT used here.
+-- *account* password. The local control API and recording downloads both log
+-- in as user "admin" with that password. The Tapo app's separate "Camera
+-- Account" (for RTSP) is NOT used here.
 
 CREATE TABLE IF NOT EXISTS cameras (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     name            TEXT    NOT NULL,
-    slug            TEXT    NOT NULL UNIQUE,         -- go2rtc stream id + download dir name
+    slug            TEXT    NOT NULL UNIQUE,         -- download dir name
     host            TEXT    NOT NULL,                -- ip or hostname
-    control_port    INTEGER,                         -- optional; pytapo/go2rtc default (443) if null
+    control_port    INTEGER,                         -- optional; pytapo default (443) if null
     account_password TEXT   NOT NULL,                -- TP-Link account password (stored unencrypted)
-    enabled         INTEGER NOT NULL DEFAULT 1,      -- include in go2rtc config
+    enabled         INTEGER NOT NULL DEFAULT 1,      -- reserved; not currently gating anything
     created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
     updated_at      TEXT    NOT NULL DEFAULT (datetime('now'))
 );
@@ -35,3 +35,23 @@ CREATE TABLE IF NOT EXISTS downloads (
 
 CREATE INDEX IF NOT EXISTS idx_downloads_camera ON downloads(camera_id, date);
 CREATE INDEX IF NOT EXISTS idx_downloads_status ON downloads(status);
+
+-- Single-row table: the TP-Link *cloud* account (distinct from each camera's
+-- local admin/account_password, though in practice it's often the same
+-- password). Only needed to opt into WebRTC playback - the existing local
+-- HTTP playback/thumbnail/download features never touch this table. Stored
+-- unencrypted, same rationale as cameras.account_password (personal home
+-- use, local-only app).
+CREATE TABLE IF NOT EXISTS cloud_account (
+    id                INTEGER PRIMARY KEY CHECK (id = 1),
+    email             TEXT    NOT NULL,
+    password          TEXT    NOT NULL,
+    terminal_uuid     TEXT    NOT NULL,          -- generated once, persisted (mimics a per-install app ID)
+    token             TEXT,
+    refresh_token     TEXT,
+    account_id        TEXT,
+    app_server_url    TEXT,                      -- region-specific server returned by login
+    token_expires_at  TEXT,                      -- unix ts (as text) or null if unknown
+    created_at        TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at        TEXT    NOT NULL DEFAULT (datetime('now'))
+);

@@ -128,6 +128,71 @@ class CameraRepo:
 
 
 # --------------------------------------------------------------------------- #
+# Cloud account (TP-Link cloud login, for WebRTC playback only)
+# --------------------------------------------------------------------------- #
+class CloudAccountRepo:
+    def get(self) -> dict[str, Any] | None:
+        with lock():
+            row = get_conn().execute("SELECT * FROM cloud_account WHERE id=1").fetchone()
+        return _row_to_dict(row)
+
+    def set_credentials(self, email: str, password: str, terminal_uuid: str) -> dict[str, Any]:
+        """Create or update the stored email/password. Clears any existing
+        token, since credentials changing invalidates whatever session was
+        tied to the old ones."""
+        with lock():
+            conn = get_conn()
+            conn.execute(
+                """
+                INSERT INTO cloud_account (id, email, password, terminal_uuid)
+                VALUES (1, :email, :password, :terminal_uuid)
+                ON CONFLICT(id) DO UPDATE SET
+                    email=:email, password=:password, terminal_uuid=:terminal_uuid,
+                    token=NULL, refresh_token=NULL, account_id=NULL,
+                    app_server_url=NULL, token_expires_at=NULL,
+                    updated_at=datetime('now')
+                """,
+                {"email": email, "password": password, "terminal_uuid": terminal_uuid},
+            )
+            conn.commit()
+        return self.get()  # type: ignore[return-value]
+
+    def set_session(
+        self,
+        token: str,
+        refresh_token: str | None,
+        account_id: str | None,
+        app_server_url: str | None,
+        token_expires_at: str | None,
+    ) -> None:
+        with lock():
+            conn = get_conn()
+            conn.execute(
+                """
+                UPDATE cloud_account SET
+                    token=:token, refresh_token=:refresh_token, account_id=:account_id,
+                    app_server_url=:app_server_url, token_expires_at=:token_expires_at,
+                    updated_at=datetime('now')
+                WHERE id=1
+                """,
+                {
+                    "token": token,
+                    "refresh_token": refresh_token,
+                    "account_id": account_id,
+                    "app_server_url": app_server_url,
+                    "token_expires_at": token_expires_at,
+                },
+            )
+            conn.commit()
+
+    def clear(self) -> None:
+        with lock():
+            conn = get_conn()
+            conn.execute("DELETE FROM cloud_account WHERE id=1")
+            conn.commit()
+
+
+# --------------------------------------------------------------------------- #
 # Downloads
 # --------------------------------------------------------------------------- #
 class DownloadRepo:
