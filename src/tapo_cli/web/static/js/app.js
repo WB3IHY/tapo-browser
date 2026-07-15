@@ -1,6 +1,4 @@
-import "../vendor/video-stream.js"; // defines the <video-stream> custom element
-import { api, snapshotUrl } from "./api.js";
-import { openLive } from "./live.js";
+import { api } from "./api.js";
 import { openRecordings } from "./recordings.js";
 
 const grid = document.getElementById("cameras");
@@ -14,16 +12,10 @@ let cameras = [];
 // --------------------------------------------------------------------------- //
 // Rendering
 // --------------------------------------------------------------------------- //
-const PLAY_SVG = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
-
 function cardEl(cam) {
   const card = document.createElement("div");
   card.className = "card";
   card.innerHTML = `
-    <div class="thumb" title="Watch live">
-      <span class="placeholder">${cam.enabled ? "Loading preview…" : "Disabled"}</span>
-      <div class="play-overlay">${PLAY_SVG}</div>
-    </div>
     <div class="body">
       <div class="name"><span class="status checking" title="Checking…"></span>${escapeHtml(cam.name)}
         ${cam.enabled ? "" : '<span class="badge disabled">disabled</span>'}
@@ -31,24 +23,12 @@ function cardEl(cam) {
       <div class="meta">${escapeHtml(cam.host)}</div>
       <div class="meta model">—</div>
       <div class="actions">
-        <button class="small primary act-live">▶ Live</button>
-        <button class="small act-rec">Recordings</button>
+        <button class="small primary act-rec">Recordings</button>
         <button class="small act-edit">Edit</button>
         <button class="small danger act-del">Delete</button>
       </div>
     </div>`;
 
-  // thumbnail preview (only for enabled cameras)
-  const thumb = card.querySelector(".thumb");
-  if (cam.enabled) {
-    const img = new Image();
-    img.onload = () => { thumb.querySelector(".placeholder")?.remove(); thumb.prepend(img); };
-    img.onerror = () => { const p = thumb.querySelector(".placeholder"); if (p) p.textContent = "No preview"; };
-    img.src = snapshotUrl(cam.slug);
-  }
-  thumb.addEventListener("click", () => openLive(cam));
-
-  card.querySelector(".act-live").addEventListener("click", () => openLive(cam));
   card.querySelector(".act-rec").addEventListener("click", () => openRecordings(cam));
   card.querySelector(".act-edit").addEventListener("click", () => openEdit(cam));
   card.querySelector(".act-del").addEventListener("click", () => deleteCamera(cam));

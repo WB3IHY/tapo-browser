@@ -22,8 +22,6 @@ class Settings:
 
     host: str = "127.0.0.1"
     port: int = 8077
-    # go2rtc HTTP API port; may be bumped at startup if already in use.
-    go2rtc_port: int = 1984
     # Max simultaneous recording downloads.
     max_concurrent_downloads: int = 2
     # Open the browser automatically on startup.
@@ -34,7 +32,6 @@ class Settings:
         return cls(
             host=os.environ.get("TAPO_HOST", "127.0.0.1"),
             port=_int_env("TAPO_PORT", 8077),
-            go2rtc_port=_int_env("TAPO_GO2RTC_PORT", 1984),
             max_concurrent_downloads=_int_env("TAPO_MAX_DOWNLOADS", 2),
             open_browser=os.environ.get("TAPO_OPEN_BROWSER", "1") != "0",
         )

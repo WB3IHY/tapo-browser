@@ -94,6 +94,19 @@ class RecordingDay(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
+# Direct playback (stream a recording without downloading it first)
+# --------------------------------------------------------------------------- #
+class PlaybackStartRequest(BaseModel):
+    start_time: int  # unix ts
+    end_time: int  # unix ts; bounds playback to this segment, not open-ended
+
+
+class PlaybackStartResponse(BaseModel):
+    session_id: str
+    playlist_url: str
+
+
+# --------------------------------------------------------------------------- #
 # Downloads
 # --------------------------------------------------------------------------- #
 class DownloadCreate(BaseModel):
@@ -140,14 +153,3 @@ class DownloadOut(BaseModel):
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
-
-
-# --------------------------------------------------------------------------- #
-# Streaming
-# --------------------------------------------------------------------------- #
-class StreamInfo(BaseModel):
-    name: str  # go2rtc stream id (camera slug)
-    # Same-origin path; the <video-stream> component turns it into a ws:// URL
-    # and derives the HLS endpoint from it.
-    ws_src: str
-    snapshot_url: str

@@ -18,5 +18,3 @@ export async function api(path, opts = {}) {
   const ct = res.headers.get("content-type") || "";
   return ct.includes("application/json") ? res.json() : res.text();
 }
-
-export const snapshotUrl = (slug) => `/api/go2rtc/api/frame.jpeg?src=${encodeURIComponent(slug)}`;

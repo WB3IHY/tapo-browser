@@ -1,5 +1,7 @@
 // Recordings browser + downloads with live SSE progress.
 import { api } from "./api.js";
+import { playSegment, closePlayer } from "./player.js";
+import { createThumbnailLoader } from "./thumbnail_loader.js";
 
 const dialog = document.getElementById("rec-dialog");
 const daysEl = document.getElementById("rec-days");
@@ -10,6 +12,7 @@ const startInput = document.getElementById("rec-start");
 const endInput = document.getElementById("rec-end");
 
 let cam = null;
+let thumbLoader = null;
 const rows = new Map();      // download id -> { el, source }
 
 export async function openRecordings(camera) {
@@ -60,6 +63,8 @@ async function loadDays() {
 }
 
 async function loadSegments(date) {
+  thumbLoader?.destroy();
+  thumbLoader = null;
   segsEl.innerHTML = `<div class="seg"><span class="spinner"></span> Loading…</div>`;
   try {
     const segs = await api(`/api/cameras/${cam.id}/recordings/segments?date=${date}`);
@@ -72,17 +77,37 @@ async function loadSegments(date) {
       const el = document.createElement("div");
       el.className = "seg";
       el.innerHTML = `
-        <div>
+        <img class="seg-thumb" alt=""
+             data-src="/api/cameras/${cam.id}/recordings/segments/${s.start_time}/thumbnail" />
+        <div class="seg-info">
           <div class="seg-time">${s.start_label} – ${s.end_label}</div>
           <div class="seg-dur">${fmtDuration(s.duration_sec)}</div>
         </div>
-        <button class="small primary">Download</button>`;
-      el.querySelector("button").addEventListener("click", (ev) => {
+        <div class="seg-actions">
+          <button class="small primary act-play">▶ Play</button>
+          <button class="small act-dl">Download</button>
+        </div>`;
+      el.querySelector(".act-play").addEventListener("click", () => playSegment(cam, s.start_time, s.end_time));
+      el.querySelector(".act-dl").addEventListener("click", (ev) => {
         ev.target.disabled = true;
         startDownload(date, s);
       });
       segsEl.appendChild(el);
     }
+
+    const capNotice = document.createElement("div");
+    capNotice.className = "thumb-cap-notice";
+    capNotice.hidden = true;
+    capNotice.innerHTML = `<span>Previews paused to avoid overloading the camera.</span> <button class="small" id="thumb-load-more">Load more previews</button>`;
+    segsEl.appendChild(capNotice);
+
+    thumbLoader = createThumbnailLoader(segsEl);
+    thumbLoader.onCapped(() => { capNotice.hidden = false; });
+    capNotice.querySelector("#thumb-load-more").addEventListener("click", () => {
+      capNotice.hidden = true;
+      thumbLoader.resumeAfterCap();
+    });
+    thumbLoader.settle();
   } catch (err) {
     segsEl.innerHTML = `<div class="empty" style="padding:24px;color:var(--danger)">${err.message}</div>`;
   }
@@ -203,4 +228,7 @@ function fmtDuration(sec) {
 document.getElementById("rec-load-days").addEventListener("click", loadDays);
 dialog.addEventListener("close", () => {
   for (const { source } of rows.values()) source?.close();
+  closePlayer();
+  thumbLoader?.destroy();
+  thumbLoader = null;
 });

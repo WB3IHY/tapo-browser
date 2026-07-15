@@ -1,4 +1,4 @@
-"""Pinned download sources for the helper binaries (ffmpeg + go2rtc).
+"""Pinned download sources for the helper binaries (ffmpeg).
 
 Keyed by (os, arch). ``os`` ∈ {windows, linux, darwin}; ``arch`` ∈ {amd64, arm64}.
 
@@ -17,18 +17,6 @@ Notes / known compromises:
 """
 
 from __future__ import annotations
-
-GO2RTC_VERSION = "v1.9.14"
-_GO2RTC_BASE = f"https://github.com/AlexxIT/go2rtc/releases/download/{GO2RTC_VERSION}"
-
-GO2RTC_SOURCES: dict[tuple[str, str], tuple[str, str]] = {
-    ("windows", "amd64"): (f"{_GO2RTC_BASE}/go2rtc_win64.zip", "zip"),
-    ("windows", "arm64"): (f"{_GO2RTC_BASE}/go2rtc_win_arm64.zip", "zip"),
-    ("linux", "amd64"): (f"{_GO2RTC_BASE}/go2rtc_linux_amd64", "raw"),
-    ("linux", "arm64"): (f"{_GO2RTC_BASE}/go2rtc_linux_arm64", "raw"),
-    ("darwin", "amd64"): (f"{_GO2RTC_BASE}/go2rtc_mac_amd64.zip", "zip"),
-    ("darwin", "arm64"): (f"{_GO2RTC_BASE}/go2rtc_mac_arm64.zip", "zip"),
-}
 
 _GYAN = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
 _JVS = "https://johnvansickle.com/ffmpeg/releases"

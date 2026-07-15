@@ -1,7 +1,7 @@
 """Entry point: `python -m tapo_cli`.
 
-Prepends the bundled ``bin/`` to PATH (so pytapo and go2rtc find ffmpeg),
-optionally opens the browser, then runs the uvicorn server bound to localhost.
+Prepends the bundled ``bin/`` to PATH (so pytapo finds ffmpeg), optionally
+opens the browser, then runs the uvicorn server bound to localhost.
 """
 
 from __future__ import annotations

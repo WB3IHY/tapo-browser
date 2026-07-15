@@ -17,17 +17,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BIN_DIR = PROJECT_ROOT / "bin"
 DATA_DIR = PROJECT_ROOT / "data"
 DOWNLOADS_DIR = DATA_DIR / "downloads"
+THUMBNAILS_DIR = DATA_DIR / "thumbnails"
+PLAYBACK_DIR = DATA_DIR / "playback"
 
 DB_PATH = DATA_DIR / "tapo.db"
-GO2RTC_CONFIG_PATH = DATA_DIR / "go2rtc.yaml"
-GO2RTC_LOG_PATH = DATA_DIR / "go2rtc.log"
 
 IS_WINDOWS = platform.system().lower().startswith("win")
 
 
 def ensure_dirs() -> None:
     """Create the runtime directories if they don't yet exist."""
-    for d in (BIN_DIR, DATA_DIR, DOWNLOADS_DIR):
+    for d in (BIN_DIR, DATA_DIR, DOWNLOADS_DIR, THUMBNAILS_DIR, PLAYBACK_DIR):
         d.mkdir(parents=True, exist_ok=True)
 
 
@@ -47,7 +47,3 @@ def ffmpeg_path() -> Path:
 
 def ffprobe_path() -> Path:
     return bin_path("ffprobe")
-
-
-def go2rtc_path() -> Path:
-    return bin_path("go2rtc")

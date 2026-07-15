@@ -1,4 +1,4 @@
-"""Download + unpack the ffmpeg and go2rtc binaries into ``bin/`` on first run.
+"""Download + unpack the ffmpeg binaries into ``bin/`` on first run.
 
 Idempotent: if a working binary is already present, it's left alone. The download
 itself runs synchronously (in a worker thread when called from async code) because
@@ -22,7 +22,7 @@ from pathlib import Path
 import httpx
 
 from .. import paths
-from .sources import FFMPEG_SOURCES, FFPROBE_SOURCES, GO2RTC_SOURCES
+from .sources import FFMPEG_SOURCES, FFPROBE_SOURCES
 
 log = logging.getLogger("tapo_cli.bootstrap")
 
@@ -70,14 +70,14 @@ def _member_matches(name: str, stem: str) -> int:
     """Score an archive member as a candidate for the binary ``stem``.
 
     Higher is better; 0 means not a match. Lets us pick ``ffmpeg.exe`` over
-    ``ffprobe.exe`` and a bare ``go2rtc`` over unrelated files.
+    ``ffprobe.exe`` in a shared archive.
     """
     base = Path(name).name.lower()
     if base in (stem, f"{stem}.exe"):
         return 3
-    if Path(base).stem == stem:  # e.g. go2rtc_win64 -> stem 'go2rtc' won't match; exact only
+    if Path(base).stem == stem:  # e.g. ffmpeg_win64 -> stem 'ffmpeg' won't match; exact only
         return 2
-    if base.startswith(stem):  # e.g. go2rtc_win64.exe
+    if base.startswith(stem):  # e.g. ffmpeg_win64.exe
         return 1
     return 0
 
@@ -254,10 +254,6 @@ def ensure_ffprobe() -> Path:
     return _ensure("ffprobe", FFPROBE_SOURCES, "-version", prefer_system=True, use_cache=True)
 
 
-def ensure_go2rtc() -> Path:
-    return _ensure("go2rtc", GO2RTC_SOURCES, "--version")
-
-
 def ensure_binaries() -> dict[str, Path]:
     """Ensure all helper binaries exist; return their resolved paths.
 
@@ -269,7 +265,6 @@ def ensure_binaries() -> dict[str, Path]:
         return {
             "ffmpeg": ensure_ffmpeg(),
             "ffprobe": ensure_ffprobe(),
-            "go2rtc": ensure_go2rtc(),
         }
     finally:
         _download_cache.clear()

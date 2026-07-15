@@ -10,7 +10,7 @@
   <header class="topbar">
     <div>
       <h1><span class="dot"></span> Tapo Camera Manager</h1>
-      <div class="sub">Live view &amp; recordings for your Tapo cameras</div>
+      <div class="sub">Browse &amp; download recordings from your Tapo cameras</div>
     </div>
     <button class="primary" id="add-btn">+ Add camera</button>
   </header>
@@ -56,7 +56,7 @@
         </div>
         <div class="field" style="display:flex;align-items:center;gap:8px;margin-top:6px">
           <input type="checkbox" name="enabled" checked style="width:auto" id="enabled-cb" />
-          <label for="enabled-cb" style="margin:0">Enabled (include in live streaming)</label>
+          <label for="enabled-cb" style="margin:0">Enabled</label>
         </div>
         <div class="test-result" id="test-result"></div>
       </div>
@@ -70,18 +70,6 @@
     </form>
   </dialog>
 
-  <!-- Live view -->
-  <dialog id="live-dialog">
-    <div class="dlg-head">
-      <h2 id="live-title">Live</h2>
-      <button type="button" class="ghost small" data-close>✕</button>
-    </div>
-    <div class="dlg-body">
-      <div id="live-mount"></div>
-      <div id="live-controls" class="live-controls"></div>
-    </div>
-  </dialog>
-
   <!-- Recordings -->
   <dialog id="rec-dialog">
     <div class="dlg-head">
@@ -89,6 +77,11 @@
       <button type="button" class="ghost small" data-close>✕</button>
     </div>
     <div class="dlg-body">
+      <div id="player" class="player" hidden>
+        <video id="player-video" controls></video>
+        <div id="player-status" class="player-status"></div>
+        <button type="button" class="small ghost" id="player-close">✕ Close player</button>
+      </div>
       <div class="rec-toolbar">
         <div class="field" style="margin:0">
           <label>From</label>
@@ -111,6 +104,7 @@
     </div>
   </dialog>
 
+  <script src="/static/vendor/hls.min.js"></script>
   <script type="module" src="/static/js/app.js"></script>
 </body>
 </html>

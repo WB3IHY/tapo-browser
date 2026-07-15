@@ -46,7 +46,7 @@ def _collect_segments(search_video_results: Any) -> list[dict[str, int]]:
                 except (TypeError, ValueError):
                     continue
                 segs.append({"start_time": st, "end_time": et})
-    segs.sort(key=lambda s: s["start_time"])
+    segs.sort(key=lambda s: s["start_time"], reverse=True)
     return segs
 
 

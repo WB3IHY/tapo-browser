@@ -17,9 +17,11 @@ from .bootstrap.binaries import ensure_binaries
 from .config import Settings
 from .db.connection import close_db, init_db
 from .db.repo import DownloadRepo
-from .streaming.go2rtc import Go2rtcProcess
 from .tapo.client import TapoClientCache
 from .tapo.downloader import DownloadManager
+from .tapo.media_session_limiter import MediaSessionLimiter
+from .tapo.playback_manager import PlaybackManager
+from .tapo.thumbnail_cache import ThumbnailCache
 
 log = logging.getLogger("tapo_cli")
 
@@ -31,7 +33,7 @@ async def lifespan(app: FastAPI):
     init_db()
     DownloadRepo().reset_stale()
 
-    log.info("Ensuring helper binaries (ffmpeg, ffprobe, go2rtc)...")
+    log.info("Ensuring helper binaries (ffmpeg, ffprobe)...")
     app.state.binaries = await asyncio.to_thread(ensure_binaries)
     # pytapo's recording converter calls bare `ffmpeg`/`ffprobe`, so make sure our
     # bundled bin/ is on PATH no matter how the app was launched.
@@ -39,17 +41,10 @@ async def lifespan(app: FastAPI):
     if bin_dir not in os.environ.get("PATH", "").split(os.pathsep):
         os.environ["PATH"] = bin_dir + os.pathsep + os.environ.get("PATH", "")
 
-    go2rtc = Go2rtcProcess(preferred_port=settings.go2rtc_port)
-    app.state.go2rtc = go2rtc
-    try:
-        await go2rtc.start()
-    except Exception:  # noqa: BLE001 — a stream failure must not down the whole app
-        log.exception("go2rtc failed to start; live view will be unavailable")
-
     try:
         yield
     finally:
-        await go2rtc.stop()
+        await app.state.playback.stop_all()
         close_db()
 
 
@@ -64,6 +59,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         paths.DOWNLOADS_DIR,
         max_concurrent=settings.max_concurrent_downloads,
     )
+    # Shared across thumbnails + playback: opening a camera media session
+    # while another is already open was observed to make one fail outright
+    # (502), so both subsystems are capped by the same conservative limit —
+    # with playback given priority so background thumbnail generation can
+    # never make an actively-waited-on playback start queue behind it.
+    media_limiter = MediaSessionLimiter(capacity=1)
+    app.state.thumbnails = ThumbnailCache(app.state.clients, media_limiter)
+    app.state.playback = PlaybackManager(app.state.clients, media_limiter)
 
     _mount_routers(app)
     _mount_static(app)
@@ -71,21 +74,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 
 def _mount_routers(app: FastAPI) -> None:
-    from .api import cameras, controls, downloads, recordings, stream
+    from .api import cameras, downloads, playback, recordings
 
     app.include_router(cameras.router, prefix="/api")
-    app.include_router(controls.router, prefix="/api")
     app.include_router(recordings.router, prefix="/api")
     app.include_router(downloads.router, prefix="/api")
-    app.include_router(stream.router, prefix="/api")
+    app.include_router(playback.router, prefix="/api")
 
     @app.get("/api/health")
     async def health() -> JSONResponse:  # noqa: ANN202
-        go2rtc: Go2rtcProcess = app.state.go2rtc
         return JSONResponse(
             {
                 "ok": True,
-                "go2rtc": {"running": go2rtc.running, "port": go2rtc.port},
                 "ffmpeg": str(paths.ffmpeg_path()),
                 "version": app.version,
             }

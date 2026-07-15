@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse
 
 from ..db.repo import CameraRepo
 from ..models import RecordingDay, RecordingSegment
@@ -57,3 +58,14 @@ async def list_segments(camera_id: int, date: str, request: Request):
             )
         )
     return out
+
+
+@router.get("/cameras/{camera_id}/recordings/segments/{start_time}/thumbnail")
+async def segment_thumbnail(camera_id: int, start_time: int, request: Request) -> FileResponse:
+    cam = _cam_or_404(camera_id)
+    cache = request.app.state.thumbnails
+    try:
+        path = await cache.get(cam, start_time)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(502, friendly_error(exc))
+    return FileResponse(path, media_type="image/jpeg")
