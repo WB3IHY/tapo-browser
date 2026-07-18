@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
 from ..db.repo import CameraRepo
-from ..models import PlaybackStartRequest, PlaybackStartResponse
+from ..models import PlaybackStartRequest, PlaybackStartResponse, PlaybackStatus
 from ..tapo.info import friendly_error
 
 router = APIRouter(tags=["playback"])
@@ -51,6 +51,14 @@ async def start_playback(camera_id: int, payload: PlaybackStartRequest, request:
 @router.delete("/playback/{session_id}", status_code=204)
 async def stop_playback(session_id: str, request: Request) -> None:
     await request.app.state.playback.stop(session_id)
+
+
+@router.get("/playback/{session_id}/status", response_model=PlaybackStatus)
+async def playback_status(session_id: str, request: Request) -> PlaybackStatus:
+    session = request.app.state.playback.get(session_id)
+    if session is None:
+        raise HTTPException(404, "Playback session not found")
+    return PlaybackStatus(running=session.running, error=session.error)
 
 
 @router.get("/playback/{session_id}/{filename}")

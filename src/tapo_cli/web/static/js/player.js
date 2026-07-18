@@ -13,8 +13,42 @@ const closeBtn = document.getElementById("player-close");
 
 let hls = null;
 let currentSessionId = null;
+let statusTimer = null;
+
+function stopStatusPolling() {
+  if (statusTimer) {
+    clearInterval(statusTimer);
+    statusTimer = null;
+  }
+}
+
+// The camera can silently stop sending data mid-session (goes quiet, no
+// error, no fatal hls.js event - see CLAUDE.md/playback.py) - hls.js just
+// treats the playlist as a live stream that hasn't grown yet and waits
+// forever. Poll the session's own status so a stalled/errored session shows
+// a real message instead of an indefinite spinner.
+function startStatusPolling(sessionId) {
+  stopStatusPolling();
+  statusTimer = setInterval(async () => {
+    let status;
+    try {
+      status = await api(`/api/playback/${sessionId}/status`);
+    } catch {
+      return; // session gone or transient — next tick will catch it
+    }
+    if (status.error) {
+      stopStatusPolling();
+      stopCurrent().then(() => {
+        playerEl.hidden = false;
+        statusEl.hidden = false;
+        statusEl.textContent = status.error;
+      });
+    }
+  }, 3000);
+}
 
 async function stopCurrent() {
+  stopStatusPolling();
   if (hls) {
     hls.destroy();
     hls = null;
@@ -40,6 +74,7 @@ export async function playSegment(cam, startTime, endTime) {
   statusEl.textContent = "Starting playback… this can take up to ~20s.";
   videoEl.addEventListener("playing", () => { statusEl.hidden = true; }, { once: true });
   videoEl.addEventListener("ended", () => {
+    stopStatusPolling();
     statusEl.hidden = false;
     statusEl.textContent = "Finished.";
   }, { once: true });
@@ -55,6 +90,7 @@ export async function playSegment(cam, startTime, endTime) {
     return;
   }
   currentSessionId = session.session_id;
+  startStatusPolling(session.session_id);
 
   if (window.Hls && window.Hls.isSupported()) {
     hls = new window.Hls({

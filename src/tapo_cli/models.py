@@ -107,6 +107,11 @@ class PlaybackStartResponse(BaseModel):
     playlist_url: str
 
 
+class PlaybackStatus(BaseModel):
+    running: bool
+    error: str | None
+
+
 # --------------------------------------------------------------------------- #
 # Downloads
 # --------------------------------------------------------------------------- #

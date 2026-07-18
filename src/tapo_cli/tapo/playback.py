@@ -93,6 +93,24 @@ video.m3u8
 """
 
 
+def _hls_total_duration(playlist_path: Path) -> float:
+    """Sum of #EXTINF durations in an ffmpeg-produced HLS playlist - i.e. how
+    much video was actually produced, regardless of what was requested.
+    """
+    try:
+        text = playlist_path.read_text()
+    except OSError:
+        return 0.0
+    total = 0.0
+    for line in text.splitlines():
+        if line.startswith("#EXTINF:"):
+            try:
+                total += float(line[len("#EXTINF:"):].rstrip(","))
+            except ValueError:
+                continue
+    return total
+
+
 class PlaybackSession:
     """One continuous camera-side playback stream, muxed to a growing pair of
     HLS renditions (video-only + audio-only, combined via a master playlist)
@@ -129,6 +147,7 @@ class PlaybackSession:
         self._audio_ffmpeg: asyncio.subprocess.Process | None = None
         self._feed_task: asyncio.Task | None = None
         self._running = False
+        self._stop_requested = False
         # External contract: what api/playback.py serves and PlaybackManager
         # waits on. Now the hand-written master playlist rather than an
         # ffmpeg-produced file - always exists immediately (written
@@ -285,8 +304,27 @@ class PlaybackSession:
             for proc in (self._video_ffmpeg, self._audio_ffmpeg):
                 if proc is not None and proc.stdin is not None and not proc.stdin.is_closing():
                     proc.stdin.close()
+            # A camera-side stall (data just stops arriving, no exception -
+            # pytapo's own no_data_timeout gives up silently, see CLAUDE.md)
+            # looks identical to a session that finished normally unless we
+            # check what actually got produced. Skipped on an explicit
+            # stop() - the user closing a clip early isn't an error.
+            if not self._stop_requested and self.error is None and self._duration_seconds:
+                if self._video_ffmpeg is not None:
+                    try:
+                        await asyncio.wait_for(self._video_ffmpeg.wait(), timeout=5.0)
+                    except asyncio.TimeoutError:
+                        pass
+                actual = _hls_total_duration(self._video_playlist_path)
+                shortfall = self._duration_seconds - actual
+                if shortfall > max(5.0, self._duration_seconds * 0.1):
+                    self.error = (
+                        f"The camera stopped sending data after {actual:.0f}s "
+                        f"of this {self._duration_seconds:.0f}s clip."
+                    )
 
     async def stop(self) -> None:
+        self._stop_requested = True
         self._running = False
         if self._feed_task is not None:
             self._feed_task.cancel()
