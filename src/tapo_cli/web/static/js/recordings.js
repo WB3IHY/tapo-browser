@@ -184,7 +184,7 @@ function upsertRow(dl) {
   }
   const el = entry.el;
   el.querySelector(".dl-label").textContent =
-    `${prettyDay(dl.date)} ${fmtClock(dl.start_time)}–${fmtClock(dl.end_time)}`;
+    `${prettyDay(dl.date)} ${dl.start_label}–${dl.end_label}`;
   el.querySelector(".dl-bar > div").style.width = `${dl.progress_pct}%`;
 
   const statusNode = el.querySelector(".dl-status");
@@ -218,7 +218,6 @@ function labelFor(dl) {
 // --------------------------------------------------------------------------- //
 const isoDate = (d) => d.toISOString().slice(0, 10);
 const prettyDay = (yyyymmdd) => `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
-const fmtClock = (ts) => new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 function fmtDuration(sec) {
   sec = Math.max(0, Math.round(sec));
   const m = Math.floor(sec / 60), s = sec % 60;

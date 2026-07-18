@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -122,6 +123,8 @@ class DownloadOut(BaseModel):
     date: str
     start_time: int
     end_time: int
+    start_label: str  # HH:MM:SS in local time, camera-clock-corrected
+    end_label: str
     status: str
     current_action: str | None
     progress_sec: float
@@ -133,7 +136,7 @@ class DownloadOut(BaseModel):
     updated_at: str
 
     @classmethod
-    def from_row(cls, row: dict[str, Any]) -> "DownloadOut":
+    def from_row(cls, row: dict[str, Any], time_correction: int = 0) -> "DownloadOut":
         total = row.get("total_sec") or 0
         prog = row.get("progress_sec") or 0
         pct = int(min(100, (prog / total) * 100)) if total else (100 if row["status"] == "done" else 0)
@@ -143,6 +146,8 @@ class DownloadOut(BaseModel):
             date=row["date"],
             start_time=row["start_time"],
             end_time=row["end_time"],
+            start_label=datetime.fromtimestamp(row["start_time"] + time_correction).strftime("%H:%M:%S"),
+            end_label=datetime.fromtimestamp(row["end_time"] + time_correction).strftime("%H:%M:%S"),
             status=row["status"],
             current_action=row.get("current_action"),
             progress_sec=prog,

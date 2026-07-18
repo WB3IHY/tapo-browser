@@ -21,6 +21,7 @@ from ..db.repo import DownloadRepo
 from ..models import DownloadOut
 from .client import TapoClientCache, run_blocking
 from .info import friendly_error
+from .recordings import time_correction
 
 log = logging.getLogger("tapo_cli.download")
 
@@ -54,9 +55,13 @@ class DownloadManager:
         t = self._tasks.get(job_id)
         return t is not None and not t.done()
 
-    def _snapshot(self, job_id: int) -> dict[str, Any]:
+    async def _snapshot(self, job_id: int, cam: dict[str, Any]) -> dict[str, Any]:
         row = self._repo.get(job_id)
-        return DownloadOut.from_row(row).model_dump()
+        try:
+            tc = await time_correction(self._cache, cam)
+        except Exception:  # noqa: BLE001 - display-only correction, never worth failing a status update over
+            tc = 0
+        return DownloadOut.from_row(row, tc).model_dump()
 
     async def _emit(self, job_id: int, payload: dict[str, Any]) -> None:
         await self.subscribe(job_id).put(payload)
@@ -79,7 +84,7 @@ class DownloadManager:
         try:
             async with self._sem:
                 self._repo.update(jid, status="running", current_action="Starting", error=None)
-                await self._emit(jid, self._snapshot(jid))
+                await self._emit(jid, await self._snapshot(jid, cam))
 
                 tapo = await self._cache.get(cam)
                 tc = int(await run_blocking(tapo.getTimeCorrection) or 0)
@@ -110,7 +115,7 @@ class DownloadManager:
                     self._repo.update(
                         jid, current_action=last_action, progress_sec=progress, total_sec=total
                     )
-                    await self._emit(jid, self._snapshot(jid))
+                    await self._emit(jid, await self._snapshot(jid, cam))
 
                 if final_path is not None and final_path.exists():
                     total = self._repo.get(jid)["total_sec"]
@@ -123,16 +128,16 @@ class DownloadManager:
                     )
                 else:
                     self._repo.update(jid, status="error", error=self._explain_failure(cam, last_action))
-                await self._emit(jid, self._snapshot(jid))
+                await self._emit(jid, await self._snapshot(jid, cam))
 
         except asyncio.CancelledError:
             self._repo.update(jid, status="canceled", current_action="Canceled")
-            await self._emit(jid, self._snapshot(jid))
+            await self._emit(jid, await self._snapshot(jid, cam))
             raise
         except Exception as exc:  # noqa: BLE001
             log.exception("download %s failed", jid)
             self._repo.update(jid, status="error", error=friendly_error(exc))
-            await self._emit(jid, self._snapshot(jid))
+            await self._emit(jid, await self._snapshot(jid, cam))
         finally:
             await self._emit(jid, _DONE)
             self._tasks.pop(jid, None)

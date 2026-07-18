@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from .. import paths
 from ..db.repo import CameraRepo, DownloadRepo
 from ..models import DownloadCreate, DownloadOut
+from ..tapo import recordings
 
 router = APIRouter(tags=["downloads"])
 _cams = CameraRepo()
@@ -20,6 +21,15 @@ _repo = DownloadRepo()
 
 def _sse(payload: dict) -> str:
     return f"data: {json.dumps(payload)}\n\n"
+
+
+async def _out(row: dict, request: Request) -> DownloadOut:
+    # Labels need the same per-camera clock correction as the recordings
+    # browser (see CLAUDE.md's getTimeCorrection gotcha) - start_time/end_time
+    # themselves stay raw, they're what's sent back to the camera on retry.
+    cam = _cams.get(row["camera_id"])
+    tc = await recordings.time_correction(request.app.state.clients, cam) if cam is not None else 0
+    return DownloadOut.from_row(row, tc)
 
 
 @router.post("/downloads", response_model=DownloadOut, status_code=201)
@@ -31,20 +41,20 @@ async def create_download(payload: DownloadCreate, request: Request) -> Download
         raise HTTPException(400, "end_time must be after start_time")
     job = _repo.create(payload.camera_id, payload.date, payload.start_time, payload.end_time)
     await request.app.state.downloads.start(cam, job)
-    return DownloadOut.from_row(_repo.get(job["id"]))
+    return await _out(_repo.get(job["id"]), request)
 
 
 @router.get("/downloads", response_model=list[DownloadOut])
-async def list_downloads(camera_id: int | None = None) -> list[DownloadOut]:
-    return [DownloadOut.from_row(r) for r in _repo.list(camera_id)]
+async def list_downloads(request: Request, camera_id: int | None = None) -> list[DownloadOut]:
+    return [await _out(r, request) for r in _repo.list(camera_id)]
 
 
 @router.get("/downloads/{download_id}", response_model=DownloadOut)
-async def get_download(download_id: int) -> DownloadOut:
+async def get_download(download_id: int, request: Request) -> DownloadOut:
     row = _repo.get(download_id)
     if row is None:
         raise HTTPException(404, "Download not found")
-    return DownloadOut.from_row(row)
+    return await _out(row, request)
 
 
 @router.post("/downloads/{download_id}/cancel", response_model=DownloadOut)
@@ -53,7 +63,7 @@ async def cancel_download(download_id: int, request: Request) -> DownloadOut:
     if row is None:
         raise HTTPException(404, "Download not found")
     await request.app.state.downloads.cancel(download_id)
-    return DownloadOut.from_row(_repo.get(download_id))
+    return await _out(_repo.get(download_id), request)
 
 
 @router.get("/downloads/{download_id}/events")
@@ -64,7 +74,7 @@ async def download_events(download_id: int, request: Request) -> StreamingRespon
 
     async def gen():
         # 1) current state from the DB so a late subscriber catches up
-        yield _sse(DownloadOut.from_row(_repo.get(download_id)).model_dump())
+        yield _sse((await _out(_repo.get(download_id), request)).model_dump())
         row = _repo.get(download_id)
         if not mgr.is_active(download_id) and row["status"] in ("done", "error", "canceled"):
             yield _sse({"_done": True})
