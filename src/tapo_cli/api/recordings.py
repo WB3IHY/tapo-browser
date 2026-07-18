@@ -42,9 +42,14 @@ async def list_segments(camera_id: int, date: str, request: Request):
     cache = request.app.state.clients
     try:
         segs = await recordings.list_segments(cache, cam, date)
+        tc = await recordings.time_correction(cache, cam)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(502, friendly_error(exc))
 
+    # start_time/end_time are left as the camera's own raw clock values,
+    # since that's what the camera expects back for playback/thumbnail/
+    # download requests for this segment. Only the human-readable labels
+    # are corrected for display - see getTimeCorrection() in CLAUDE.md.
     out: list[RecordingSegment] = []
     for s in segs:
         st, et = s["start_time"], s["end_time"]
@@ -53,8 +58,8 @@ async def list_segments(camera_id: int, date: str, request: Request):
                 start_time=st,
                 end_time=et,
                 duration_sec=max(0, et - st),
-                start_label=datetime.fromtimestamp(st).strftime("%H:%M:%S"),
-                end_label=datetime.fromtimestamp(et).strftime("%H:%M:%S"),
+                start_label=datetime.fromtimestamp(st + tc).strftime("%H:%M:%S"),
+                end_label=datetime.fromtimestamp(et + tc).strftime("%H:%M:%S"),
             )
         )
     return out
