@@ -66,6 +66,16 @@ async def cancel_download(download_id: int, request: Request) -> DownloadOut:
     return await _out(_repo.get(download_id), request)
 
 
+@router.delete("/downloads/{download_id}", status_code=204)
+async def delete_download(download_id: int, request: Request) -> None:
+    row = _repo.get(download_id)
+    if row is None:
+        return
+    if row["status"] in ("queued", "running"):
+        raise HTTPException(409, "Cancel the download before clearing it")
+    _repo.delete(download_id)
+
+
 @router.get("/downloads/{download_id}/events")
 async def download_events(download_id: int, request: Request) -> StreamingResponse:
     if _repo.get(download_id) is None:

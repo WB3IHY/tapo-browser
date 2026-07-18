@@ -194,15 +194,26 @@ function upsertRow(dl) {
 
   const action = el.querySelector(".dl-action");
   if (dl.status === "done") {
-    action.innerHTML = `<a class="btn small primary" href="/api/downloads/${dl.id}/file">Save file</a>`;
+    action.innerHTML = `<a class="btn small primary" href="/api/downloads/${dl.id}/file">Save file</a> <button class="small">Clear</button>`;
+    action.querySelector("button").onclick = () => clearRow(dl.id);
   } else if (dl.status === "running" || dl.status === "queued") {
     action.innerHTML = `<button class="small">Cancel</button>`;
     action.querySelector("button").onclick = async () => {
       try { await api(`/api/downloads/${dl.id}/cancel`, { method: "POST" }); } catch {}
     };
   } else {
-    action.innerHTML = "";
+    // error / canceled
+    action.innerHTML = `<button class="small">Clear</button>`;
+    action.querySelector("button").onclick = () => clearRow(dl.id);
   }
+}
+
+async function clearRow(id) {
+  try { await api(`/api/downloads/${id}`, { method: "DELETE" }); } catch { return; }
+  const entry = rows.get(id);
+  entry?.source?.close();
+  entry?.el?.remove();
+  rows.delete(id);
 }
 
 function labelFor(dl) {

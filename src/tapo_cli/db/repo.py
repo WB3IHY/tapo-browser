@@ -242,6 +242,12 @@ class DownloadRepo:
             )
             conn.commit()
 
+    def delete(self, download_id: int) -> None:
+        with lock():
+            conn = get_conn()
+            conn.execute("DELETE FROM downloads WHERE id=?", (download_id,))
+            conn.commit()
+
     def reset_stale(self) -> None:
         """On startup, any 'running'/'queued' job from a previous run is dead."""
         with lock():
