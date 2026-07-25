@@ -137,6 +137,13 @@ form .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
 .thumb-cap-notice {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 10px 11px; font-size: 13px; color: var(--muted);
+  /* Appended as the last row of a potentially long (200-300+) segment
+     list — without sticking to the bottom of the scroll viewport, it's
+     invisible unless the user scrolls all the way down, which reads as
+     "thumbnails silently stopped loading" instead of a pause needing
+     explicit resume. */
+  position: sticky; bottom: 0; z-index: 1;
+  background: var(--panel); border-top: 1px solid var(--border);
 }
 
 .player { margin-bottom: 16px; }
