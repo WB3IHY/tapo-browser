@@ -102,6 +102,35 @@ Tapo APK:
 - No real camera has been used to validate `DownloaderV2` yet as of this note — do that before
   building API/UI around it. See "Testing notes" below.
 
+## Planned: event timeline bar (not started)
+
+Goal: a horizontal timeline bar over the per-day recordings list, matching the official
+Tapo Android app's playback-screen timeline — a scrubbable bar spanning the day, with
+colored strips marking each detected-event segment (the app uses at least two colors,
+e.g. yellow vs. blue, likely by event type) and a draggable playhead, synced with the
+segment list below it. Scoped as two stages:
+
+1. **Visual timeline bar over the existing segment list** — no new playback capability,
+   just a better-than-a-plain-list map of the day. Needs:
+   - Checking what event-type field (if any) is actually present in the raw
+     `search_video_results` dicts from `getRecordings`/`getRecordingsList` against a real
+     camera — `tapo/recordings.py`'s `_collect_segments()` currently discards everything
+     except `startTime`/`endTime` (this gap was already flagged in the thumbnail/playback
+     prototype section above). If no event-type field exists, fall back to single-color
+     segment strips.
+   - A new frontend timeline component (`recordings.js` + CSS) rendering each segment as
+     a proportionally-positioned/width strip across the visible time range, with
+     click-to-select wired into the existing segment list/play/download actions.
+2. **Mid-clip scrubbing** (optional follow-up, more involved) — the Android app's
+   playhead scrubs continuously, including mid-segment. Our playback model
+   (`player.js` / the `/api/cameras/{id}/playback` session) currently only starts a
+   session for a whole segment's `start_time`→`end_time`; true scrubbing would need the
+   playback session to accept a seek offset within a segment, not just play it from the
+   start.
+
+Do stage 1 first and check in before starting stage 2. See chat from 2026-09-03 (screenshot
+of the Android app's timeline was reviewed) for the original ask.
+
 ## Testing notes
 
 - Test against a real Tapo camera on your LAN; downloads (and the thumbnail/playback prototype)
