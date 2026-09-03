@@ -105,18 +105,26 @@ export async function playSegment(cam, startTime, endTime) {
           errorRetry: { maxNumRetry: 3, retryDelayMs: 2000, maxRetryDelayMs: 4000 },
         },
       },
-      // Separate from manifestLoadPolicy (which only covers the *first*
-      // load): this governs the periodic reloads hls.js does throughout
-      // playback to discover new segments as the playlist grows. Left at
-      // its modest default, a single transient hiccup during one of those
-      // reloads could make hls.js quietly stop polling and playback just
-      // run out of buffered content early, with no dramatic error — a
-      // plausible explanation for a clip stopping well short of its real
-      // length.
+      // Separate from manifestLoadPolicy, but must be at least as generous:
+      // master.m3u8 (the "manifest") is written synchronously and always
+      // exists immediately, so manifestLoadPolicy's budget is never really
+      // exercised — the real ffmpeg cold-start wait (up to the server's own
+      // 30s poll window, see api/playback.py's _PLAYLIST_WAIT_SECONDS)
+      // lands on the *first* video.m3u8/audio.m3u8 fetch, which this policy
+      // governs. Previously set to 20000ms, shorter than the server's 30s
+      // wait — on any cold start landing in that 20-30s gap, hls.js would
+      // time out and start retrying before the server would have answered,
+      // sometimes without ever surfacing a fatal error the UI could catch
+      // (looked like an indefinite hang past 20s, worse on longer clips
+      // whose cold start is more likely to land past 20s). This policy also
+      // governs the periodic reloads hls.js does throughout playback to
+      // discover new segments as the playlist grows — a longer timeout
+      // there is harmless (segments flow quickly once started) and was the
+      // same reasoning as the comment this one replaces.
       playlistLoadPolicy: {
         default: {
-          maxTimeToFirstByteMs: 20000,
-          maxLoadTimeMs: 20000,
+          maxTimeToFirstByteMs: 35000,
+          maxLoadTimeMs: 35000,
           timeoutRetry: { maxNumRetry: 4, retryDelayMs: 1000, maxRetryDelayMs: 4000 },
           errorRetry: { maxNumRetry: 6, retryDelayMs: 1000, maxRetryDelayMs: 4000 },
         },
