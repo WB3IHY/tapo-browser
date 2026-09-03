@@ -35,13 +35,32 @@ log = logging.getLogger("tapo_cli.thumbnails")
 # wide window costs nothing and avoids the loop entirely.
 _END_TIME_HORIZON_SECONDS = 3600
 
+# A recorded segment's startTime is when the *recording* began, not when the
+# triggering motion/person was actually detected — Tapo recordings include a
+# few seconds of pre-roll before the event, so grabbing frame 1 at exactly
+# start_time often shows the empty scene just before the subject enters (the
+# official Android app's event thumbnail comes from the camera's own
+# detection pipeline directly, not from anything exposed by getRecordings/
+# getRecordingsList — confirmed by inspecting the raw search_video_results
+# entries: they carry only startTime/endTime/vedio_type, no trigger-time
+# field). A fixed offset into the clip is a heuristic, not an exact match —
+# retune this if previews still consistently miss the subject. Measured
+# against the real Android app on 2026-09-03: comparing its event thumbnail
+# to the matching clip's timeline placement put the trigger frame at ~5s in
+# (an earlier guess of 2s undershot it).
+THUMBNAIL_TRIGGER_OFFSET_SECONDS = 5
+
 
 async def generate_thumbnail(tapo: Tapo, start_time: int, timeout: float = 25.0, window_size: int = 500) -> bytes:
     """Grab a single JPEG frame near ``start_time`` from recorded footage.
 
+    The frame is actually grabbed ``THUMBNAIL_TRIGGER_OFFSET_SECONDS`` into
+    the clip, not at ``start_time`` itself — see that constant's comment.
+
     Returns JPEG bytes, or raises on failure (no footage at that time, camera
     unreachable, etc).
     """
+    frame_time = start_time + THUMBNAIL_TRIGGER_OFFSET_SECONDS
     # Prime getUserID()'s cache off the event loop first — see playback.py's
     # docstring for why calling it for the first time from inside a running
     # loop crashes pytapo's internal handler.
@@ -77,8 +96,8 @@ async def generate_thumbnail(tapo: Tapo, start_time: int, timeout: float = 25.0,
                     "client_id": tapo.getUserID(),
                     "channels": [0, 1],
                     "scale": "1/1",
-                    "start_time": str(start_time),
-                    "end_time": str(start_time + _END_TIME_HORIZON_SECONDS),
+                    "start_time": str(frame_time),
+                    "end_time": str(frame_time + _END_TIME_HORIZON_SECONDS),
                     "event_type": [1, 2],
                 },
                 "method": "get",
