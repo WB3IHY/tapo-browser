@@ -156,6 +156,10 @@ export async function playSegment(cam, startTime, endTime) {
   }
 }
 
+export function isPlayerOpen() {
+  return !playerEl.hidden;
+}
+
 export async function closePlayer() {
   await stopCurrent();
   playerEl.hidden = true;

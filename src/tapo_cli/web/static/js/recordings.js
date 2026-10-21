@@ -1,6 +1,6 @@
 // Recordings browser + downloads with live SSE progress.
 import { api } from "./api.js";
-import { playSegment, closePlayer } from "./player.js";
+import { playSegment, closePlayer, isPlayerOpen } from "./player.js";
 import { createThumbnailLoader } from "./thumbnail_loader.js";
 
 const dialog = document.getElementById("rec-dialog");
@@ -225,6 +225,21 @@ function fmtDuration(sec) {
 }
 
 document.getElementById("rec-load-days").addEventListener("click", loadDays);
+
+// The header ✕ (and Escape) peel back one layer at a time: with a player
+// open they close just the player and leave the camera's recordings list
+// where it was; only with no player open do they close the dialog.
+const recCloseBtn = document.getElementById("rec-close");
+recCloseBtn.addEventListener("click", () => {
+  if (isPlayerOpen()) closePlayer();
+  else dialog.close();
+});
+dialog.addEventListener("cancel", (ev) => {
+  if (isPlayerOpen()) {
+    ev.preventDefault();
+    closePlayer();
+  }
+});
 dialog.addEventListener("close", () => {
   for (const { source } of rows.values()) source?.close();
   closePlayer();
