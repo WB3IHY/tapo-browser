@@ -26,7 +26,7 @@ RUN pip install --no-cache-dir \
         "fastapi>=0.115" \
         "uvicorn[standard]>=0.30" \
         "jinja2>=3.1" \
-        "pytapo>=3.4,<4" \
+        "pytapo>=3.4.20,<4" \
         "aiofiles>=23.0" \
         "httpx>=0.27" \
         "aiortc>=1.15.0"
