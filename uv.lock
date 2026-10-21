@@ -708,7 +708,7 @@ wheels = [
 
 [[package]]
 name = "pytapo"
-version = "3.4.14"
+version = "3.4.28"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pycryptodome" },
@@ -717,9 +717,9 @@ dependencies = [
     { name = "rtp" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2c/11/77c3d5918dd438cfb755bcd2de24866862c66861d00780ac3d8cd3e4bc75/pytapo-3.4.14.tar.gz", hash = "sha256:c7d5e695396dfd5fb4a551499500599a3e425f4dcbad1848e9c139555e3c1932", size = 59153, upload-time = "2026-05-20T00:13:35.051Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/db/91/1d3ee59e8878680b1349b4452a1d41b20ee31ba75f5bdbe16e57ba8360b3/pytapo-3.4.28.tar.gz", hash = "sha256:70a486e41815ff6c1bf62835c6f5845e82038459951aa4021a8428465f831ed7", size = 74782, upload-time = "2026-10-18T16:27:15.294Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/11/d9/13d6d8aae61645d29dbb8d8474b56fda1f59de1205203d65a624ef2fa39f/pytapo-3.4.14-py3-none-any.whl", hash = "sha256:3b1785e41b253aed5f2bd1d4c704ee75a18602f354d7f72ab1a6064171a924e6", size = 64059, upload-time = "2026-05-20T00:13:33.675Z" },
+    { url = "https://files.pythonhosted.org/packages/2b/ae/b6fd47897f7b140e8d38d13023fa6b60fa5035400778538b5608fd721d24/pytapo-3.4.28-py3-none-any.whl", hash = "sha256:31aa6d60dee3c38c2da415af57a6be8f719cc11ebf03a90cd69ce5db119cfb38", size = 79897, upload-time = "2026-10-18T16:27:13.918Z" },
 ]
 
 [[package]]
@@ -821,7 +821,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "jinja2", specifier = ">=3.1" },
-    { name = "pytapo", specifier = ">=3.4,<4" },
+    { name = "pytapo", specifier = ">=3.4.20,<4" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
 
