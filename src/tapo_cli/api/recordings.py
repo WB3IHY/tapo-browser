@@ -46,6 +46,10 @@ async def list_segments(camera_id: int, date: str, request: Request):
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(502, friendly_error(exc))
 
+    # Warm the thumbnail cache from the camera's own stored images, in the
+    # background, so the rows below find them already on disk.
+    request.app.state.thumbnails.start_prefetch(cam, [s["start_time"] for s in segs])
+
     # start_time/end_time are left as the camera's own raw clock values,
     # since that's what the camera expects back for playback/thumbnail/
     # download requests for this segment. Only the human-readable labels

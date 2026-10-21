@@ -95,18 +95,7 @@ async function loadSegments(date) {
       segsEl.appendChild(el);
     }
 
-    const capNotice = document.createElement("div");
-    capNotice.className = "thumb-cap-notice";
-    capNotice.hidden = true;
-    capNotice.innerHTML = `<span>Previews paused to avoid overloading the camera.</span> <button class="small" id="thumb-load-more">Load more previews</button>`;
-    segsEl.appendChild(capNotice);
-
     thumbLoader = createThumbnailLoader(segsEl);
-    thumbLoader.onCapped(() => { capNotice.hidden = false; });
-    capNotice.querySelector("#thumb-load-more").addEventListener("click", () => {
-      capNotice.hidden = true;
-      thumbLoader.resumeAfterCap();
-    });
     thumbLoader.settle();
   } catch (err) {
     segsEl.innerHTML = `<div class="empty" style="padding:24px;color:var(--danger)">${err.message}</div>`;
