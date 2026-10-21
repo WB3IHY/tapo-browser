@@ -66,9 +66,9 @@ machine:
 ```sh
 ssh root@HA_PI_HOST -p HA_SSH_PORT "mkdir -p /addons/local/tapo-browser"
 scp -r -P HA_SSH_PORT \
-  ~/development/tapo-browser/pyproject.toml \
-  ~/development/tapo-browser/src \
-  ~/development/tapo-browser/homeassistant-addon/* \
+  ~/development/hass-tapo-camera-manager/pyproject.toml \
+  ~/development/hass-tapo-camera-manager/src \
+  ~/development/hass-tapo-camera-manager/homeassistant-addon/* \
   root@HA_PI_HOST:/addons/local/tapo-browser/
 ```
 
