@@ -9,7 +9,7 @@ add multiple cameras and browse/download SD-card recordings. FastAPI backend + v
 UI, bound to `127.0.0.1` only. The TP-Link account password is stored **unencrypted** in
 local SQLite by design (personal home use).
 
-**Current focus:** prototyping recording **thumbnail previews** and **direct playback**
+**Current focus:** the playback UX (thumbnails, direct playback and the event timeline bar are in; see below). Originally: prototyping recording **thumbnail previews** and **direct playback**
 (stream a recording segment without downloading the whole file first) — the two things
 the official Tapo Android app can do that this project and
 [HomeAssistant-Tapo-Control](https://github.com/JurajNyiri/HomeAssistant-Tapo-Control)
@@ -103,34 +103,42 @@ Tapo APK:
 - No real camera has been used to validate `DownloaderV2` yet as of this note — do that before
   building API/UI around it. See "Testing notes" below.
 
-## Planned: event timeline bar (not started)
+## Event timeline bar (shipped)
 
-Goal: a horizontal timeline bar over the per-day recordings list, matching the official
-Tapo Android app's playback-screen timeline — a scrubbable bar spanning the day, with
-colored strips marking each detected-event segment (the app uses at least two colors,
-e.g. yellow vs. blue, likely by event type) and a draggable playhead, synced with the
-segment list below it. Scoped as two stages:
+`web/static/js/timeline.js` + `GET /api/cameras/{id}/recordings/events?date=` (one
+`searchDetectionList` call per day; returns raw camera-clock `day_start`, `time_correction` and
+events with `kind` motion/person/other). A ~3h window, fixed centred playhead, drag/wheel to scrub.
+Nothing happens until the mouse is released; then the recording highlights (the list scrolls
+itself, never the page) and ~1s later playback starts at the playhead.
 
-1. **Visual timeline bar over the existing segment list** — no new playback capability,
-   just a better-than-a-plain-list map of the day. Needs:
-   - Checking what event-type field (if any) is actually present in the raw
-     `search_video_results` dicts from `getRecordings`/`getRecordingsList` against a real
-     camera — `tapo/recordings.py`'s `_collect_segments()` currently discards everything
-     except `startTime`/`endTime` (this gap was already flagged in the thumbnail/playback
-     prototype section above). If no event-type field exists, fall back to single-color
-     segment strips.
-   - A new frontend timeline component (`recordings.js` + CSS) rendering each segment as
-     a proportionally-positioned/width strip across the visible time range, with
-     click-to-select wired into the existing segment list/play/download actions.
-2. **Mid-clip scrubbing** (optional follow-up, more involved) — the Android app's
-   playhead scrubs continuously, including mid-segment. Our playback model
-   (`player.js` / the `/api/cameras/{id}/playback` session) currently only starts a
-   session for a whole segment's `start_time`→`end_time`; true scrubbing would need the
-   playback session to accept a seek offset within a segment, not just play it from the
-   start.
+- **Playback from any second:** `recordings.js` `playFrom(raw)` asks the camera to start at that
+  exact second (verified 2026-10-22: it lands within ~3s of the request). A drop in a gap starts at
+  the next recording.
+- **Auto-advance:** the session's length is the total footage from the drop point to the end of the
+  day; the camera streams chronologically across gaps (gaps don't count toward the length), so one
+  session rolls through the following clips. The bar follows via `video.currentTime` mapped through
+  the clip lengths. The camera delivers ~1-2s less per clip than listed, so the bar's position
+  drifts ~1-2s per clip crossed and the last seconds of a long chain can be cut off.
+- Needs the whole day's segments (`daySegs`), so it only appears once a day is loaded; if the events
+  call fails the list still works without it.
 
-Do stage 1 first and check in before starting stage 2. See chat from 2026-09-03 (screenshot
-of the Android app's timeline was reviewed) for the original ask.
+## Playback startup (learned 2026-10-22)
+
+- **ffmpeg's slow input probing was the cause of "playback hangs / camera ignores me".** The camera's
+  mpegts has a private audio stream ffmpeg can never identify, so it kept probing for ~2.7MB (~17s of
+  camera data) before writing any video. `-probesize`/`-analyzeduration` do NOT stop that;
+  `-max_probe_packets 50` does (17s -> ~5s; found by replaying a captured raw stream offline through
+  ffmpeg variants). It had looked like camera throttling after quick session churn, but the camera
+  sent video within 0.3s every time. With it fixed, back-to-back sessions are reliable and no pause
+  between them is needed (`_PLAYBACK_COOLDOWN_SECONDS = 0`).
+- The player has a watchdog: no playing video within 15s, or a 30s freeze mid-playback, stops the
+  session and shows a message instead of an endless spinner.
+- `MediaSessionLimiter`'s cooldown now applies to every request (it used to be skipped when the slot
+  was free).
+- To debug a session: log level DEBUG for `tapo_cli` shows limiter grants, session start/stop, first
+  video data time and ffmpeg's stderr at stop. Don't enable DEBUG for `pytapo` (it can log
+  credentials). To study ffmpeg behaviour, save the raw camera stream (the feed's `resp.plaintext`)
+  to a file and replay it offline.
 
 ## Testing notes
 

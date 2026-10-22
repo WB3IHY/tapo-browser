@@ -10,11 +10,13 @@ computer you can:
 It runs entirely on your own machine — nothing is sent to the cloud, and the web page is
 only reachable from the same computer (`http://127.0.0.1:8077`).
 
-**Current work:** prototyping recording **thumbnail previews** and **direct playback**
-(streaming a recording straight from the camera without downloading it first) — the two
-things the official Tapo Android app can do that this tool can't yet. See `CLAUDE.md` for
-where that stands. Live view and the in-browser camera controls panel that used to be part
-of this app have been removed to keep the project focused on that goal.
+**What it does beyond downloads:** recording **thumbnail previews** (the camera's own stored
+images), **direct playback** (streaming a recording straight from the camera without
+downloading it first), and an **event timeline bar** like the Tapo app's: a zoomed strip of
+the day's motion (yellow) and person (blue) events with a fixed playhead. Drag the strip to
+any moment, let go, and that spot starts playing; the bar follows the video and playback
+rolls on into the next recording by itself. See `CLAUDE.md` for how it works. Live view and
+the in-browser camera controls panel that used to be part of this app have been removed.
 
 ---
 
