@@ -176,6 +176,13 @@ class PlaybackSession:
             "-loglevel", "warning",
             "-probesize", "32",
             "-analyzeduration", "0",
+            # probesize/analyzeduration do NOT bound probing of this input: the
+            # camera's private audio stream can never be identified, so ffmpeg
+            # kept probing for ~2.7MB (~17s of camera data) before writing any
+            # video, which looked like a stalled session. The packet-count
+            # limit is the one that actually stops it (17s -> ~5s on a replayed
+            # capture of a start time that failed live, 2026-10-22).
+            "-max_probe_packets", "50",
             "-f", "mpegts",
             "-i", "pipe:0",
             "-map", "0:v:0",
@@ -252,12 +259,23 @@ class PlaybackSession:
         )
         ts_buffer = bytearray()
         audio_extractor = ts_demux.AudioExtractor()
+        t0 = time.monotonic()
+        stats = {"msgs": 0, "video_bytes": 0, "first_video_s": None}
+        sid = self._output_dir.name
+
+        log.debug("session %s feed starting start_time=%s", sid, self._start_time)
         try:
             async with media_session:
                 # Real gaps between recordings can pause the underlying data
                 # feed for tens of seconds (observed up to ~25-40s against a
                 # real camera) without the session actually being over.
                 async for resp in media_session.transceive(payload, no_data_timeout=60.0):
+                    stats["msgs"] += 1
+                    if resp.mimetype == "video/mp2t":
+                        stats["video_bytes"] += len(resp.plaintext)
+                        if stats["first_video_s"] is None:
+                            stats["first_video_s"] = round(time.monotonic() - t0, 1)
+                            log.debug("session %s first video data after %.1fs", sid, stats["first_video_s"])
                     if not self._running:
                         break
                     if resp.mimetype != "video/mp2t":
@@ -300,6 +318,8 @@ class PlaybackSession:
             log.exception("Playback session feed failed")
             self.error = str(exc)
         finally:
+            log.debug("session %s feed ended: msgs=%d video_bytes=%d first_video_after=%s error=%s",
+                      sid, stats["msgs"], stats["video_bytes"], stats["first_video_s"], self.error)
             self._running = False
             for proc in (self._video_ffmpeg, self._audio_ffmpeg):
                 if proc is not None and proc.stdin is not None and not proc.stdin.is_closing():
@@ -324,6 +344,7 @@ class PlaybackSession:
                     )
 
     async def stop(self) -> None:
+        log.debug("session %s stop()", self._output_dir.name)
         self._stop_requested = True
         self._running = False
         if self._feed_task is not None:
@@ -343,6 +364,13 @@ class PlaybackSession:
             except asyncio.TimeoutError:
                 proc.kill()
                 await proc.wait()
+        for name in ("ffmpeg-video.log", "ffmpeg-audio.log"):
+            try:
+                text = (self._output_dir / name).read_text(errors="replace").strip()
+            except OSError:
+                continue
+            if text:
+                log.debug("session %s %s: %s", self._output_dir.name, name, text[-600:])
 
     @property
     def running(self) -> bool:

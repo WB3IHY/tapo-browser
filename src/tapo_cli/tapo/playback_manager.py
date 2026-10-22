@@ -32,6 +32,12 @@ from .playback import PlaybackSession
 # duration is correct; any positive padding is not.
 _DURATION_PADDING_SECONDS = 0
 
+# Extra idle time after a playback session ends before the camera gets another
+# session. Not needed: the "sessions started too soon get no video" failures of
+# 2026-10-22 were really ffmpeg's slow input probing (see playback.py), and with
+# that fixed back-to-back sessions play reliably. Kept as a knob.
+_PLAYBACK_COOLDOWN_SECONDS = 0.0
+
 
 class PlaybackManager:
     def __init__(self, clients: TapoClientCache, media_limiter: MediaSessionLimiter) -> None:
@@ -92,12 +98,13 @@ class PlaybackManager:
         if session_id in self._camera_released:
             return
         self._camera_released.add(session_id)
-        self._limiter.release()
+        self._limiter.release(_PLAYBACK_COOLDOWN_SECONDS)
 
     def get(self, session_id: str) -> PlaybackSession | None:
         return self._sessions.get(session_id)
 
     async def stop(self, session_id: str) -> None:
+        log.debug("stop requested for session %s (known=%s)", session_id, session_id in self._sessions)
         session = self._sessions.pop(session_id, None)
         out_dir = self._dirs.pop(session_id, None)
         for cam_id, sid in list(self._by_camera.items()):
