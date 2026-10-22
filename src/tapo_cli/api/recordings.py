@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
 from ..db.repo import CameraRepo
-from ..models import RecordingDay, RecordingSegment
+from ..models import RecordingDay, RecordingEvent, RecordingEvents, RecordingSegment
 from ..tapo import recordings
 from ..tapo.info import friendly_error
 
@@ -67,6 +67,31 @@ async def list_segments(camera_id: int, date: str, request: Request):
             )
         )
     return out
+
+
+@router.get("/cameras/{camera_id}/recordings/events", response_model=RecordingEvents)
+async def list_events(camera_id: int, date: str, request: Request):
+    cam = _cam_or_404(camera_id)
+    cache = request.app.state.clients
+    try:
+        events = await recordings.list_events(cache, cam, date)
+        tc = await recordings.time_correction(cache, cam)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(502, friendly_error(exc))
+    # Raw camera-clock times, matching /segments; the UI applies the time
+    # correction for display only.
+    return RecordingEvents(
+        day_start=recordings.day_start(date),
+        time_correction=tc,
+        events=[
+            RecordingEvent(
+                start_time=e["start_time"],
+                end_time=e["end_time"],
+                kind=recordings.EVENT_KINDS.get(e["alarm_type"], "other"),
+            )
+            for e in events
+        ],
+    )
 
 
 @router.get("/cameras/{camera_id}/recordings/segments/{start_time}/thumbnail")

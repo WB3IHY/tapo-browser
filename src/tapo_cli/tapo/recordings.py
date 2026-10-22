@@ -8,6 +8,7 @@ digs for the fields it needs rather than assuming a fixed structure.
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta
 from typing import Any
 
 from .client import TapoClientCache, run_blocking
@@ -60,6 +61,66 @@ async def list_segments(cache: TapoClientCache, cam: dict[str, Any], date: str) 
     client = await cache.get(cam)
     raw = await run_blocking(client.getRecordings, normalize_date(date))
     return _collect_segments(raw)
+
+
+# alarm_type values seen from searchDetectionList (inferred from the Tapo app's colours).
+EVENT_KINDS = {2: "motion", 6: "person"}
+_EVENT_PAGE = 999
+
+
+def _fetch_events(client: Any, start: int, end: int) -> list[dict[str, Any]]:
+    """Raw-clock detection events in [start, end), paged in case a day exceeds one page."""
+    events: list[dict[str, Any]] = []
+    index = 0
+    while True:
+        resp = client.executeFunction(
+            "searchDetectionList",
+            {
+                "playback": {
+                    "search_detection_list": {
+                        "start_index": index,
+                        "channel": 0,
+                        "start_time": start,
+                        "end_time": end,
+                        "end_index": index + _EVENT_PAGE,
+                    }
+                }
+            },
+        )
+        page = (resp or {}).get("playback", {}).get("search_detection_list") or []
+        for ev in page:
+            try:
+                events.append(
+                    {
+                        "start_time": int(ev["start_time"]),
+                        "end_time": int(ev["end_time"]),
+                        "alarm_type": int(ev.get("alarm_type", 0)),
+                    }
+                )
+            except (KeyError, TypeError, ValueError):
+                continue
+        if len(page) <= _EVENT_PAGE:
+            return events
+        index += len(page)
+
+
+def day_start(date: str) -> int:
+    """Raw camera-clock timestamp of midnight starting `date` (the day getRecordings lists)."""
+    return int(datetime.strptime(normalize_date(date), "%Y%m%d").timestamp())
+
+
+async def list_events(cache: TapoClientCache, cam: dict[str, Any], date: str) -> list[dict[str, Any]]:
+    """Detection events for one day, in the camera's raw clock, oldest first.
+
+    The day is taken in the camera's own clock (same as getRecordings' date), so
+    no time correction is applied here; the caller corrects for display only.
+    """
+    client = await cache.get(cam)
+    start = day_start(date)
+    end = int((datetime.fromtimestamp(start) + timedelta(days=1)).timestamp())
+    events = await run_blocking(_fetch_events, client, start, end)
+    events.sort(key=lambda e: e["start_time"])
+    return events
 
 
 async def time_correction(cache: TapoClientCache, cam: dict[str, Any]) -> int:

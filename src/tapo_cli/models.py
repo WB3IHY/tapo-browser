@@ -90,6 +90,18 @@ class RecordingSegment(BaseModel):
     end_label: str
 
 
+class RecordingEvent(BaseModel):
+    start_time: int  # camera-clock unix ts, like RecordingSegment
+    end_time: int
+    kind: str  # "motion", "person", or "other"
+
+
+class RecordingEvents(BaseModel):
+    day_start: int  # camera-clock ts of the day's midnight
+    time_correction: int  # seconds; add to a raw ts to get true time
+    events: list[RecordingEvent]
+
+
 class RecordingDay(BaseModel):
     date: str  # YYYYMMDD
 
