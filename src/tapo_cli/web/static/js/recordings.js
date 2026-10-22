@@ -111,9 +111,36 @@ async function loadSegments(date) {
     thumbLoader.settle();
 
     const ev = await eventsReq;
-    if (ev && segsEl.querySelector(".seg")) showTimeline(date, ev, segs);
+    if (ev && segsEl.querySelector(".seg")) {
+      markTriggers(segs, ev.events);
+      showTimeline(date, ev, segs);
+    }
   } catch (err) {
     segsEl.innerHTML = `<div class="empty" style="padding:24px;color:var(--danger)">${err.message}</div>`;
+  }
+}
+
+// Put a coloured dot on each row for what triggered the recording, matching the
+// bar's colours. A recording takes the kind of the events overlapping it; person
+// outranks motion since it's the more specific detection.
+const KIND_RANK = { person: 2, motion: 1, other: 0 };
+const KIND_TITLE = { person: "Person detected", motion: "Motion detected", other: "Other event" };
+
+function markTriggers(segs, events) {
+  for (const s of segs) {
+    let kind = null;
+    for (const e of events) {
+      if (e.start_time < s.end_time && e.end_time > s.start_time && (kind === null || KIND_RANK[e.kind] > KIND_RANK[kind])) {
+        kind = e.kind;
+      }
+    }
+    if (kind === null) continue;
+    const row = segsEl.querySelector(`.seg[data-start="${s.start_time}"] .seg-time`);
+    if (!row) continue;
+    const dot = document.createElement("span");
+    dot.className = `seg-dot ${kind}`;
+    dot.title = KIND_TITLE[kind] || KIND_TITLE.other;
+    row.prepend(dot);
   }
 }
 
