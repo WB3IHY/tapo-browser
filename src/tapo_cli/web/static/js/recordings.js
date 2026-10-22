@@ -2,6 +2,7 @@
 import { api } from "./api.js";
 import { playSegment, closePlayer, isPlayerOpen } from "./player.js";
 import { createThumbnailLoader } from "./thumbnail_loader.js";
+import { createTimeline } from "./timeline.js";
 
 const dialog = document.getElementById("rec-dialog");
 const daysEl = document.getElementById("rec-days");
@@ -10,9 +11,12 @@ const statusEl = document.getElementById("rec-status");
 const downloadsEl = document.getElementById("downloads");
 const startInput = document.getElementById("rec-start");
 const endInput = document.getElementById("rec-end");
+const timelineEl = document.getElementById("rec-timeline");
 
 let cam = null;
 let thumbLoader = null;
+let timeline = null;
+let daySegs = [];            // current day's segments, oldest first
 const rows = new Map();      // download id -> { el, source }
 
 export async function openRecordings(camera) {
@@ -65,9 +69,12 @@ async function loadDays() {
 async function loadSegments(date) {
   thumbLoader?.destroy();
   thumbLoader = null;
+  hideTimeline();
   segsEl.innerHTML = `<div class="seg"><span class="spinner"></span> Loading…</div>`;
   try {
     const segs = await api(`/api/cameras/${cam.id}/recordings/segments?date=${date}`);
+    // The bar is an extra: if the event lookup fails the list still works.
+    const eventsReq = api(`/api/cameras/${cam.id}/recordings/events?date=${date}`).catch(() => null);
     if (!segs.length) {
       segsEl.innerHTML = `<div class="empty" style="padding:24px">No segments for this day.</div>`;
       return;
@@ -76,6 +83,7 @@ async function loadSegments(date) {
     for (const s of segs) {
       const el = document.createElement("div");
       el.className = "seg";
+      el.dataset.start = s.start_time;
       el.innerHTML = `
         <img class="seg-thumb" alt=""
              data-src="/api/cameras/${cam.id}/recordings/segments/${s.start_time}/thumbnail" />
@@ -87,7 +95,11 @@ async function loadSegments(date) {
           <button class="small primary act-play">▶ Play</button>
           <button class="small act-dl">Download</button>
         </div>`;
-      el.querySelector(".act-play").addEventListener("click", () => playSegment(cam, s.start_time, s.end_time));
+      el.querySelector(".act-play").addEventListener("click", () => {
+        // With the bar up, play via it so the bar follows and playback rolls on.
+        if (timeline) playFrom(s.start_time);
+        else playSegment(cam, s.start_time, s.end_time);
+      });
       el.querySelector(".act-dl").addEventListener("click", (ev) => {
         ev.target.disabled = true;
         startDownload(date, s);
@@ -97,9 +109,66 @@ async function loadSegments(date) {
 
     thumbLoader = createThumbnailLoader(segsEl);
     thumbLoader.settle();
+
+    const ev = await eventsReq;
+    if (ev && segsEl.querySelector(".seg")) showTimeline(date, ev, segs);
   } catch (err) {
     segsEl.innerHTML = `<div class="empty" style="padding:24px;color:var(--danger)">${err.message}</div>`;
   }
+}
+
+function hideTimeline() {
+  timeline?.destroy();
+  timeline = null;
+  timelineEl.hidden = true;
+}
+
+// Play from a raw timestamp: the camera streams one session chronologically
+// through every later recording that day (skipping gaps), so the bar can keep
+// following the video and playback rolls on into the next recording by itself.
+// A moment inside a gap starts at the next recording.
+function playFrom(raw) {
+  raw = Math.floor(raw); // the bar's position is fractional; the camera wants whole seconds
+  const i = daySegs.findIndex((s) => raw <= s.end_time);
+  const idx = i === -1 ? daySegs.length - 1 : i;
+  if (idx < 0) return;
+  const startRaw = Math.max(raw, daySegs[idx].start_time);
+  const chain = daySegs.slice(idx);
+  // Footage lengths: the first clip from the drop point, the rest in full.
+  const lengths = chain.map((s, n) => s.end_time - (n === 0 ? startRaw : s.start_time));
+  const total = lengths.reduce((a, b) => a + b, 0);
+  const toRaw = (elapsed) => {
+    for (let n = 0; n < chain.length; n++) {
+      if (elapsed < lengths[n]) return (n === 0 ? startRaw : chain[n].start_time) + elapsed;
+      elapsed -= lengths[n];
+    }
+    return chain[chain.length - 1].end_time;
+  };
+  const tl = timeline;
+  playSegment(cam, startRaw, startRaw + total, (t) => tl?.follow(toRaw(t)));
+}
+
+function showTimeline(date, ev, segs) {
+  timelineEl.hidden = false;
+  daySegs = [...segs].sort((a, b) => a.start_time - b.start_time);
+  timeline = createTimeline(timelineEl, {
+    dayStart: ev.day_start,
+    timeCorrection: ev.time_correction,
+    events: ev.events,
+    segments: segs,
+    onPlay: playFrom,
+    onSettle: (s) => {
+      segsEl.querySelectorAll(".seg.hl").forEach((x) => x.classList.remove("hl"));
+      const row = s && segsEl.querySelector(`.seg[data-start="${s.start_time}"]`);
+      if (!row) return;
+      row.classList.add("hl");
+      // Scroll only the list, never the page/dialog (scrollIntoView would yank those too).
+      const top = row.offsetTop - segsEl.offsetTop;
+      if (top < segsEl.scrollTop || top + row.offsetHeight > segsEl.scrollTop + segsEl.clientHeight) {
+        segsEl.scrollTo({ top: top - 8, behavior: "smooth" });
+      }
+    },
+  });
 }
 
 // --------------------------------------------------------------------------- //
@@ -245,4 +314,5 @@ dialog.addEventListener("close", () => {
   closePlayer();
   thumbLoader?.destroy();
   thumbLoader = null;
+  hideTimeline();
 });

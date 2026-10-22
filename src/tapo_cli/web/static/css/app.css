@@ -153,3 +153,24 @@ form .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
 .spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--muted); border-top-color: transparent; border-radius:50%; animation: spin .7s linear infinite; vertical-align: -2px; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Event timeline bar */
+.timeline { margin-bottom: 14px; }
+.tl-bar { position: relative; height: 84px; background: #10161c; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; cursor: grab; touch-action: pan-y; user-select: none; }
+.tl-bar.dragging { cursor: grabbing; }
+.tl-strip { position: absolute; top: 0; bottom: 0; left: 0; will-change: transform; }
+.tl-tick { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--border); pointer-events: none; }
+.tl-tick span { position: absolute; bottom: 3px; left: 4px; font-size: 11px; color: var(--muted); }
+.tl-rec { position: absolute; top: 62px; height: 4px; border-radius: 2px; background: #3b4a59; }
+.tl-ev { position: absolute; top: 30px; height: 28px; border-radius: 2px; background: #6b7785; cursor: pointer; }
+.tl-ev.motion { background: var(--warn); }
+.tl-ev.person { background: #3b82f6; }
+.tl-playhead { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none; }
+.tl-bubble { position: absolute; left: 50%; top: 3px; transform: translateX(-50%); background: var(--accent); color: #07241f; font-weight: 600; font-size: 12px; padding: 1px 8px; border-radius: 10px; font-variant-numeric: tabular-nums; pointer-events: none; }
+.tl-play { position: absolute; left: calc(50% + 70px); top: 3px; }
+.tl-legend { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.tl-legend i { display: inline-block; width: 10px; height: 10px; margin: 0 4px 0 12px; vertical-align: middle; border-radius: 2px; background: #6b7785; }
+.tl-legend i:first-child { margin-left: 0; }
+.tl-legend i.motion { background: var(--warn); }
+.tl-legend i.person { background: #3b82f6; }
+.rec-segments .seg.hl { background: #1f3a3a; box-shadow: inset 3px 0 0 var(--accent); }
