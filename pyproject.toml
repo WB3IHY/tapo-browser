@@ -1,6 +1,6 @@
 [project]
 name = "tapo-cli"
-version = "0.1.0"
+version = "0.4.1"
 description = "Local web app to manage TP-Link Tapo cameras: live view + browse/download SD recordings"
 readme = "README.md"
 requires-python = "==3.13.*"
