@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import paths
+from . import __version__, paths
 from .bootstrap.binaries import ensure_binaries
 from .config import Settings
 from .db.connection import close_db, init_db
@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.load()
-    app = FastAPI(title="Tapo Camera Manager", lifespan=lifespan)
+    app = FastAPI(title="Tapo Camera Manager", version=__version__, lifespan=lifespan)
     app.state.settings = settings
     app.state.clients = TapoClientCache()
     app.state.downloads = DownloadManager(
