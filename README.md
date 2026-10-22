@@ -15,7 +15,7 @@ images), **direct playback** (streaming a recording straight from the camera wit
 downloading it first), and an **event timeline bar** like the Tapo app's: a zoomed strip of
 the day's motion (yellow) and person (blue) events with a fixed playhead. Drag the strip to
 any moment, let go, and that spot starts playing; the bar follows the video and playback
-rolls on into the next recording by itself. See `CLAUDE.md` for how it works. Live view and
+rolls on into the next recording by itself. Each recording in the list carries a colored dot for what triggered it. See `CLAUDE.md` for how it works. Live view and
 the in-browser camera controls panel that used to be part of this app have been removed.
 
 ---
