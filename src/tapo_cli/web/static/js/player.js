@@ -14,6 +14,17 @@ const closeBtn = document.getElementById("player-close");
 let hls = null;
 let currentSessionId = null;
 let statusTimer = null;
+let timeHandler = null;
+let sessionListeners = null;
+let watchdog = null;
+
+// How long a session may go without delivering video before we call it failed.
+// From experience a session that hasn't started playing within 10-15s never
+// will, while one that has started always recovers from brief spinners (a few
+// seconds, e.g. ~5s in). So startup is strict and mid-playback stalls lenient.
+const STARTUP_TIMEOUT_MS = 15000;
+const STALL_TIMEOUT_MS = 30000;
+const WATCHDOG_TICK_MS = 2000;
 
 function stopStatusPolling() {
   if (statusTimer) {
@@ -47,8 +58,60 @@ function startStatusPolling(sessionId) {
   }, 3000);
 }
 
+function stopWatchdog() {
+  if (watchdog) {
+    clearInterval(watchdog);
+    watchdog = null;
+  }
+}
+
+// Detect the failure the status poll can't see: the session is "running" but
+// no video ever arrives (camera busy/silent), or arrives and then stops. Tear
+// the session down and say so, rather than leaving a spinner forever.
+function startWatchdog() {
+  stopWatchdog();
+  const startedAt = Date.now();
+  let everPlayed = false;
+  let lastTime = -1;
+  let lastProgressAt = startedAt;
+  const fail = (message) => {
+    stopCurrent().then(() => {
+      playerEl.hidden = false;
+      statusEl.hidden = false;
+      statusEl.textContent = message;
+    });
+  };
+  watchdog = setInterval(() => {
+    const now = Date.now();
+    if (videoEl.ended) return;
+    if (!everPlayed) {
+      if (videoEl.currentTime > 0 && !videoEl.paused) everPlayed = true;
+      else if (now - startedAt > STARTUP_TIMEOUT_MS) {
+        fail("The camera didn't start sending video within " + STARTUP_TIMEOUT_MS / 1000 +
+             " seconds. It may be busy — wait a minute, then press Play again.");
+      }
+      return;
+    }
+    if (videoEl.paused || videoEl.currentTime !== lastTime) {
+      lastTime = videoEl.currentTime;
+      lastProgressAt = now;
+    } else if (now - lastProgressAt > STALL_TIMEOUT_MS) {
+      fail("Playback stalled — the camera stopped sending video. Press Play to try again.");
+    }
+  }, WATCHDOG_TICK_MS);
+}
+
 async function stopCurrent() {
   stopStatusPolling();
+  stopWatchdog();
+  if (timeHandler) {
+    videoEl.removeEventListener("timeupdate", timeHandler);
+    timeHandler = null;
+  }
+  if (sessionListeners) {
+    for (const [name, fn] of Object.entries(sessionListeners)) videoEl.removeEventListener(name, fn);
+    sessionListeners = null;
+  }
   if (hls) {
     hls.destroy();
     hls = null;
@@ -67,17 +130,32 @@ async function stopCurrent() {
   }
 }
 
-export async function playSegment(cam, startTime, endTime) {
+// `onTime(seconds)` is called as playback advances, with seconds of video
+// elapsed since this session's first frame (used to move the timeline bar).
+export async function playSegment(cam, startTime, endTime, onTime = null) {
   await stopCurrent();
+  if (onTime) {
+    let base = null;
+    timeHandler = () => {
+      if (videoEl.paused && base === null) return;
+      if (base === null) base = videoEl.currentTime;
+      onTime(videoEl.currentTime - base);
+    };
+    videoEl.addEventListener("timeupdate", timeHandler);
+  }
   playerEl.hidden = false;
   statusEl.hidden = false;
-  statusEl.textContent = "Starting playback… this can take up to ~20s.";
-  videoEl.addEventListener("playing", () => { statusEl.hidden = true; }, { once: true });
-  videoEl.addEventListener("ended", () => {
+  statusEl.textContent = "Starting playback… this can take up to ~15s.";
+  // Per-session listeners, removed again in stopCurrent() so they don't pile up.
+  const onPlaying = () => { statusEl.hidden = true; };
+  const onEnded = () => {
     stopStatusPolling();
     statusEl.hidden = false;
     statusEl.textContent = "Finished.";
-  }, { once: true });
+  };
+  videoEl.addEventListener("playing", onPlaying, { once: true });
+  videoEl.addEventListener("ended", onEnded, { once: true });
+  sessionListeners = { playing: onPlaying, ended: onEnded };
 
   let session;
   try {
@@ -91,6 +169,7 @@ export async function playSegment(cam, startTime, endTime) {
   }
   currentSessionId = session.session_id;
   startStatusPolling(session.session_id);
+  startWatchdog();
 
   if (window.Hls && window.Hls.isSupported()) {
     hls = new window.Hls({
